@@ -12,3 +12,8 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
+Depends: 
+    R (>= 3.5)
+LazyData: true
+URL: https://github.com/petzi53/pressfreedom
+BugReports: https://github.com/petzi53/pressfreedom/issues
