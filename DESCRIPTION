@@ -1,0 +1,14 @@
+Package: pressfreedom
+Title: Press Freedom Dashboard
+Version: 0.0.0.9000
+Authors@R: 
+    person("Peter", "Baumgartner", , "petzi53@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-4526-8791"))
+Description: A Shiny dashboard for exploring Reporters Without Borders (RWB)
+    Press Freedom Index data from 2002 to the present. Combines RWB scores
+    with United Nations M49 geographic classifications to enable comparisons
+    across countries, regions, and time.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0
