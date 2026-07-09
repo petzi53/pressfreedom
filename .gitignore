@@ -1,1 +1,5 @@
 .Rproj.user
+.posit/
+_archive/
+contexts/
+conversation-export*.md
