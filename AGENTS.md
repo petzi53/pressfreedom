@@ -50,6 +50,18 @@ pressfreedom/
 
 Dimension scores (`political_context` etc.) are only available for 2022+.
 
+### Known Data Issues
+
+**2022 Zone Classification Anomaly** — In 2022, RWB used two non-standard geographic zones:
+- "Europe - Asie centrale" (53 countries)
+- "Maghreb - Moyen-Orient" (19 countries)
+
+These zones appear **only in 2022** and do not align with the historical classifications used in all other years:
+- "Europe - Asie centrale" countries belong to either "UE Balkans" (40) or "EEAC" (13) in other years
+- "Maghreb - Moyen-Orient" countries belong to "MENA" (19) in all other years
+
+**Resolution**: Applied in `data-raw/rwb.R` — 2022 zone assignments are automatically corrected during package build to match historical classifications. This preserves all 180 countries in 2022 while ensuring zone homogeneity across the entire time series.
+
 ## Shiny App Architecture
 
 The app uses a fully modular design (`inst/app/`):

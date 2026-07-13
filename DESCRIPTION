@@ -22,7 +22,8 @@ Suggests:
     ggbump,
     ggplot2,
     plotly,
-    RColorBrewer
+    RColorBrewer,
+    stringr
 Remotes:
     davidsjoberg/ggbump
 LazyData: true

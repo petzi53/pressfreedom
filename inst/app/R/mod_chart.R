@@ -22,15 +22,10 @@ chartUI <- function(id) {
 chartServer <- function(id, rwb, var, country) {
     shiny::moduleServer(id, function(input, output, session) {
 
-        # Filtered data reacts to both var and country selections
+        # Filtered data reacts to var and country selections
         data <- shiny::reactive({
             shiny::req(country())
             df_chart(rwb, var(), country())
-        })
-
-        output$title <- shiny::renderText({
-            shiny::req(country())
-            card_title(var(), country())
         })
 
         output$plot <- plotly::renderPlotly({
@@ -40,23 +35,20 @@ chartServer <- function(id, rwb, var, country) {
             n   <- length(country())
             col <- stats::setNames(pal[seq_len(n)], country())
 
-            if (var() == "score") {
-                plotly::plot_ly(
-                    data   = data(),
-                    x      = ~year_n,
-                    y      = ~score,
-                    color  = ~country_en,
-                    colors = col,
-                    type   = "scatter",
-                    mode   = "lines+markers",
-                    line   = list(width = 4),
-                    marker = list(size = 20)
-                ) |>
-                    plotly::layout(
-                        xaxis = list(title = "Year"),
-                        yaxis = list(title = "Score")
-                    )
-            } else {
+            # Determine y-axis title based on selected variable
+            y_title <- switch(var(),
+                "score" = "Score",
+                "rank" = "Rank",
+                "political_context" = "Political Context",
+                "economic_context" = "Economic Context",
+                "legal_context" = "Legal Context",
+                "social_context" = "Social Context",
+                "safety" = "Safety",
+                "Value"
+            )
+
+            if (var() == "rank") {
+                # Bump chart for ranks
                 p <- ggplot2::ggplot(
                     data(),
                     ggplot2::aes(x = year_n, y = rank, color = country_en)
@@ -84,7 +76,26 @@ chartServer <- function(id, rwb, var, country) {
                     ggplot2::ylab("Rank")
 
                 plotly::ggplotly(p)
+            } else {
+                # Line chart for score and dimension variables
+                plotly::plot_ly(
+                    data   = data(),
+                    x      = ~year_n,
+                    y      = as.formula(paste0("~", var())),
+                    color  = ~country_en,
+                    colors = col,
+                    type   = "scatter",
+                    mode   = "lines+markers",
+                    line   = list(width = 4),
+                    marker = list(size = 20)
+                ) |>
+                    plotly::layout(
+                        xaxis = list(title = "Year"),
+                        yaxis = list(title = y_title)
+                    )
             }
         })
     })
 }
+
+compareMainUI <- chartUI

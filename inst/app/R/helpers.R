@@ -17,10 +17,19 @@ df_chart <- function(df, var, country) {
 
 #' Build a card title string from variable and country selection
 #'
-#' @param var     "score" or "rank"
+#' @param var     "score", "rank", or a dimension variable
 #' @param country Character vector of selected country names.
 card_title <- function(var, country) {
-    prefix <- if (var == "score") "Global Score for" else "Global Rank for"
+    prefix <- switch(var,
+        "score" = "Global Score for",
+        "rank" = "Global Rank for",
+        "political_context" = "Political Context for",
+        "economic_context" = "Economic Context for",
+        "legal_context" = "Legal Context for",
+        "social_context" = "Social Context for",
+        "safety" = "Safety for",
+        "Unknown for"
+    )
     countries <- paste(country, collapse = ", ")
     paste(prefix, countries)
 }

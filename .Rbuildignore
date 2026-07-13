@@ -8,3 +8,4 @@
 ^AGENTS\.md$
 ^contexts$
 ^conversation-export.*\.md$
+^\.posit/assistant$

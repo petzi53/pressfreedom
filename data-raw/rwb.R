@@ -24,6 +24,41 @@ rwb_book_path <- here::here(
 
 rwb <- readRDS(rwb_book_path)
 
+# 2022 ZONE CORRECTION: In 2022, RWB used non-standard zone classifications
+# ("Europe - Asie centrale" and "Maghreb - Moyen-Orient"). These appear only in 2022
+# and do not align with historical classifications used in all other years.
+# Reassign these to match the traditional zones used in other years:
+#   - "Europe - Asie centrale" → "UE Balkans" (40 countries) or "EEAC" (13 countries)
+#   - "Maghreb - Moyen-Orient" → "MENA" (19 countries)
+# This ensures zone homogeneity across the entire time series.
+# See: https://github.com/petzi/pressfreedom/issues/[ISSUE_NUMBER]
+rwb <- rwb |>
+  dplyr::mutate(
+    zone = dplyr::case_when(
+      # European/Balkan countries (traditionally "UE Balkans")
+      year_n == 2022 & zone == "Europe - Asie centrale" & country_en %in% c(
+        "Albania", "Andorra", "Austria", "Belgium", "Bosnia and Herzegovina",
+        "Bulgaria", "Croatia", "Cyprus", "Cyprus North", "Czech Republic",
+        "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+        "Hungary", "Iceland", "Ireland", "Italy", "Kosovo", "Latvia",
+        "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Montenegro",
+        "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal",
+        "Romania", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden",
+        "Switzerland", "United Kingdom"
+      ) ~ "UE Balkans",
+      # Central Asian/Eastern European countries (traditionally "EEAC")
+      year_n == 2022 & zone == "Europe - Asie centrale" & country_en %in% c(
+        "Armenia", "Azerbaijan", "Belarus", "Georgia", "Kazakhstan",
+        "Kyrgyzstan", "Moldova", "Russian Federation", "Tajikistan",
+        "Turkey", "Turkmenistan", "Ukraine", "Uzbekistan"
+      ) ~ "EEAC",
+      # Maghreb and Middle Eastern countries (traditionally "MENA")
+      year_n == 2022 & zone == "Maghreb - Moyen-Orient" ~ "MENA",
+      # Keep all other assignments unchanged
+      TRUE ~ zone
+    )
+  )
+
 # Verify the dataset looks as expected before saving.
 stopifnot(
   is.data.frame(rwb),
