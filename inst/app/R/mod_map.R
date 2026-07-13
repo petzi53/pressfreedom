@@ -44,9 +44,20 @@ mapMainUI <- function(id, rwb) {
   )
 }
 
-mapServer <- function(id, rwb) {
+mapServer <- function(id, rwb, reset = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Reset map to default state (last year, World, Score) when triggered
+    if (!is.null(reset)) {
+      shiny::observeEvent(reset(), {
+        shiny::updateSelectInput(session, "year",
+            choices  = sort(unique(rwb$year_n), decreasing = TRUE),
+            selected = max(rwb$year_n, na.rm = TRUE))
+        shiny::updateSelectInput(session, "zone",   selected = "World")
+        shiny::updateRadioButtons(session, "metric", selected = "score")
+      }, ignoreInit = TRUE)
+    }
 
     # Reactively update year choices based on selected zone
     shiny::observe({

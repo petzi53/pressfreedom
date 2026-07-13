@@ -16,26 +16,38 @@ chartUI <- function(id) {
     bslib::card(
         height = "calc(100vh - 105px)",
         bslib::card_header(shiny::textOutput(ns("title"))),
-        plotly::plotlyOutput(ns("plot"), height = "100%")
+        shiny::uiOutput(ns("plot_or_placeholder"))
     )
 }
 
 chartServer <- function(id, rwb, var, country) {
     shiny::moduleServer(id, function(input, output, session) {
+        ns <- session$ns
 
         # Filtered data reacts to var and country selections
         data <- shiny::reactive({
-            shiny::req(country())
+            shiny::req(length(country()) > 0)
             df_chart(rwb, var(), country())
         })
 
         output$title <- shiny::renderText({
-            shiny::req(data())
+            shiny::req(length(country()) > 0, data())
             card_title(var(), country(), unique(data()$year_n))
         })
 
+        output$plot_or_placeholder <- shiny::renderUI({
+            if (length(country()) == 0) {
+                shiny::div(
+                    style = "display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;",
+                    shiny::p("Select one or more countries to display the chart.")
+                )
+            } else {
+                plotly::plotlyOutput(ns("plot"), height = "100%")
+            }
+        })
+
         output$plot <- plotly::renderPlotly({
-            shiny::req(data())
+            shiny::req(length(country()) > 0, data())
 
             # Subset palette to the number of selected countries
             n   <- length(country())

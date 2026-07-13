@@ -20,7 +20,11 @@ rwb <- pressfreedom::rwb
 
 ##############################################################
 ui <- bslib::page_sidebar(
-    title = "World Press Freedom Index",
+    title = shiny::actionLink(
+        "reset_app",
+        "World Press Freedom Index",
+        style = "color: inherit; text-decoration: none;"
+    ),
     fillable = TRUE,
     sidebar = bslib::sidebar(
         width = 260,
@@ -52,6 +56,10 @@ ui <- bslib::page_sidebar(
             background: transparent;
             padding-top: 0.75rem;
         }
+
+        /* Title acts as a home link — inherit navbar colour, underline on hover */
+        #reset_app { color: inherit !important; text-decoration: none !important; }
+        #reset_app:hover { text-decoration: underline !important; }
     ")
 )
 
@@ -62,7 +70,15 @@ server <- function(input, output, session) {
         bslib::nav_select("main_view", input$view)
     })
 
-    mapServer("map", rwb)
+    # Title click: navigate to World Map and signal the map module to reset
+    reset_trigger <- shiny::reactiveVal(0)
+    shiny::observeEvent(input$reset_app, {
+        bslib::nav_select("view", "World Map")
+        bslib::nav_select("main_view", "World Map")
+        reset_trigger(reset_trigger() + 1)
+    })
+
+    mapServer("map", rwb, reset = reset_trigger)
 
     # Inputs module returns list(var, country) as reactives
     sel <- inputsServer("inputs")

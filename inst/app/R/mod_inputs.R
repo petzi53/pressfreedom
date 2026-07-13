@@ -23,11 +23,18 @@ inputsUI <- function(id, rwb) {
         shiny::selectInput(
             inputId = ns("country"),
             label = "Countries",
-            choices = unique(rwb$country_en),
+            choices = c("Select countries..." = "", sort(unique(as.character(rwb$country_en)))),
+            selected = character(0),
             multiple = TRUE
         ),
         # Conditional warning note for dimension variables (2022+ only)
-        shiny::uiOutput(ns("dimension_note"))
+        shiny::uiOutput(ns("dimension_note")),
+        shiny::actionButton(
+            ns("clear"),
+            "Clear all",
+            icon  = shiny::icon("times"),
+            class = "btn-sm btn-outline-secondary w-100 mt-1"
+        )
     )
 }
 
@@ -42,6 +49,10 @@ inputsServer <- function(id) {
                     "Data available for 2022 onwards only."
                 )
             }
+        })
+
+        shiny::observeEvent(input$clear, {
+            shiny::updateSelectInput(session, "country", selected = character(0))
         })
 
         # Return inputs as reactives

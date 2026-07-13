@@ -3,11 +3,19 @@
 
 countrySidebarUI <- function(id, rwb) {
     ns <- shiny::NS(id)
-    shiny::selectInput(
-        ns("country"),
-        label = "Select country",
-        choices = sort(unique(rwb$country_en)),
-        selected = sort(unique(rwb$country_en))[1]
+    shiny::tagList(
+        shiny::selectInput(
+            ns("country"),
+            label = "Select country",
+            choices = c("Select a country..." = "", sort(unique(as.character(rwb$country_en)))),
+            selected = ""
+        ),
+        shiny::actionButton(
+            ns("clear"),
+            "Clear",
+            icon  = shiny::icon("times"),
+            class = "btn-sm btn-outline-secondary w-100 mt-1"
+        )
     )
 }
 
@@ -18,7 +26,7 @@ countryMainUI <- function(id) {
         bslib::card(
             height = "calc(100vh - 155px)",
             bslib::card_header("Dimensions Overview (2022–Present)"),
-            shiny::plotOutput(ns("plot_overview"), height = "100%")
+            shiny::uiOutput(ns("plot_or_placeholder"))
         )
     )
 }
@@ -41,16 +49,33 @@ countryServer <- function(id, rwb) {
             "safety" = "Safety"
         )
 
+        shiny::observeEvent(input$clear, {
+            shiny::updateSelectInput(session, "country", selected = "")
+        })
+
         # Dynamic header
         output$country_header <- shiny::renderUI({
+            shiny::req(input$country != "")
             shiny::tags$h3(
                 card_title("score", input$country),
                 class = "mb-0"
             )
         })
 
+        output$plot_or_placeholder <- shiny::renderUI({
+            if (is.null(input$country) || input$country == "") {
+                shiny::div(
+                    style = "display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;",
+                    shiny::p("Select a country to display the chart.")
+                )
+            } else {
+                shiny::plotOutput(ns("plot_overview"), height = "100%")
+            }
+        })
+
         # Overview Plot: All dimensions in one (2022 onwards)
         output$plot_overview <- shiny::renderPlot({
+
             # Get all data for this country at once, filtering to 2022+
             data_long <- rwb |>
                 dplyr::filter(country_en == input$country, year_n >= 2022) |>
