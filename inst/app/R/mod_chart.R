@@ -28,6 +28,11 @@ chartServer <- function(id, rwb, var, country) {
             df_chart(rwb, var(), country())
         })
 
+        output$title <- shiny::renderText({
+            shiny::req(data())
+            card_title(var(), country(), unique(data()$year_n))
+        })
+
         output$plot <- plotly::renderPlotly({
             shiny::req(data())
 

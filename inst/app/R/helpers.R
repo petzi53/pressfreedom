@@ -15,11 +15,12 @@ df_chart <- function(df, var, country) {
         droplevels()
 }
 
-#' Build a card title string from variable and country selection
+#' Build a card title string from variable, country selection, and year range
 #'
 #' @param var     "score", "rank", or a dimension variable
 #' @param country Character vector of selected country names.
-card_title <- function(var, country) {
+#' @param years   Numeric vector of years present in the filtered data.
+card_title <- function(var, country, years = NULL) {
     prefix <- switch(var,
         "score" = "Global Score for",
         "rank" = "Global Rank for",
@@ -30,6 +31,13 @@ card_title <- function(var, country) {
         "safety" = "Safety for",
         "Unknown for"
     )
-    countries <- paste(country, collapse = ", ")
-    paste(prefix, countries)
+    countries  <- paste(country, collapse = ", ")
+    year_range <- if (is.null(years) || length(years) == 0) {
+        ""
+    } else if (min(years) == max(years)) {
+        paste("in", min(years))
+    } else {
+        paste("in", min(years), "\u2013", max(years))
+    }
+    paste(prefix, countries, year_range)
 }
