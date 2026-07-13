@@ -103,14 +103,14 @@ countryServer <- function(id, rwb) {
                 "safety" = "#56B4E9"                # Light blue
             )
 
-            # Line width mapping: Global Score is thicker
+            # Uniform line width across all dimensions
             linewidth_map <- c(
-                "score" = 1.5,
-                "political_context" = 1,
-                "economic_context" = 1,
-                "legal_context" = 1,
-                "social_context" = 1,
-                "safety" = 1
+                "score" = 2.5,
+                "political_context" = 2.5,
+                "economic_context" = 2.5,
+                "legal_context" = 2.5,
+                "social_context" = 2.5,
+                "safety" = 2.5
             )
 
             # Get start and end values for labeling
@@ -139,14 +139,12 @@ countryServer <- function(id, rwb) {
             p <- ggplot2::ggplot(data_long, ggplot2::aes(
                     x = year_n, 
                     y = value, 
-                    color = dimension, 
-                    linetype = dimension
+                    color = dimension
                 )) +
                 ggplot2::geom_line(ggplot2::aes(linewidth = dimension)) +
-                ggplot2::geom_point(size = 1.5) +
+                ggplot2::geom_point(size = 5) +
                 ggplot2::scale_color_manual(values = color_map) +
                 ggplot2::scale_linewidth_manual(values = linewidth_map) +
-                ggplot2::scale_linetype_manual(values = c(1, 2, 3, 4, 5, 6)) +
                 ggplot2::theme_minimal(base_size = 20) +
                 ggplot2::labs(x = NULL, y = "Index Value") +
                 ggplot2::theme(
