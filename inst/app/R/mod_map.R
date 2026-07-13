@@ -238,13 +238,23 @@ mapServer <- function(id, rwb, reset = NULL) {
       metric <- input$metric
       max_rank <- max(rwb$rank, na.rm = TRUE)
 
+      # RSF-style color scale: dark red (worst) → orange → yellow → light green → dark green (best)
+      # Based on ColorBrewer RdYlGn 5-class; luminance variation aids colorblind legibility
+      rsf_colorscale <- list(
+        list(0.00, "rgb(215, 48, 39)"),
+        list(0.25, "rgb(252, 141, 89)"),
+        list(0.50, "rgb(254, 224, 139)"),
+        list(0.75, "rgb(145, 207, 96)"),
+        list(1.00, "rgb(26, 152, 80)")
+      )
+
       # Determine color scale and value column based on metric
       if (metric == "score") {
         z_values <- data$score
         z_min <- 0
         z_max <- 100
-        colorscale <- "RdYlGn"
-        reversescale <- TRUE
+        colorscale <- rsf_colorscale
+        reversescale <- FALSE
         z_label <- "Score (0–100)"
         hovertext <- paste0(
           "<b>",
@@ -267,8 +277,8 @@ mapServer <- function(id, rwb, reset = NULL) {
         z_values <- max_rank - data$rank + 1
         z_min <- 1
         z_max <- max_rank
-        colorscale <- "RdYlGn"
-        reversescale <- TRUE
+        colorscale <- rsf_colorscale
+        reversescale <- FALSE
         z_label <- "Rank"
         hovertext <- paste0(
           "<b>",
