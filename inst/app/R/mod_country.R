@@ -16,8 +16,9 @@ countryMainUI <- function(id) {
     shiny::tagList(
         shiny::uiOutput(ns("country_header")),
         bslib::card(
+            height = "calc(100vh - 155px)",
             bslib::card_header("Dimensions Overview (2022–Present)"),
-            shiny::plotOutput(ns("plot_overview"), height = "350px")
+            shiny::plotOutput(ns("plot_overview"), height = "100%")
         )
     )
 }
@@ -121,23 +122,31 @@ countryServer <- function(id, rwb) {
                 ggplot2::scale_color_manual(values = color_map) +
                 ggplot2::scale_linewidth_manual(values = linewidth_map) +
                 ggplot2::scale_linetype_manual(values = c(1, 2, 3, 4, 5, 6)) +
-                ggplot2::theme_minimal() +
+                ggplot2::theme_minimal(base_size = 20) +
                 ggplot2::labs(x = NULL, y = "Index Value") +
-                ggplot2::theme(legend.position = "none")
+                ggplot2::theme(
+                    legend.position = "none",
+                    axis.text  = ggplot2::element_text(face = "bold"),
+                    axis.title = ggplot2::element_text(face = "bold")
+                )
 
             p +
+                ggplot2::scale_x_continuous(
+                    expand = ggplot2::expansion(mult = 0.25)
+                ) +
                 # Start-of-line labels: right-aligned, nudged left
                 ggrepel::geom_label_repel(
                     data = data_labels_start,
                     ggplot2::aes(label = dim_labels[dimension], fill = dimension),
                     color = "white",
                     fontface = "bold",
-                    size = 4,
+                    size = 5,
                     label.size = 0.2,
                     label.padding = ggplot2::unit(0.3, "lines"),
                     direction = "y",
+                    force = 0.5,
                     hjust = 1,
-                    nudge_x = -0.3,
+                    nudge_x = -0.2,
                     segment.size = 0.4,
                     segment.alpha = 0.6,
                     show.legend = FALSE
@@ -148,12 +157,13 @@ countryServer <- function(id, rwb) {
                     ggplot2::aes(label = dim_labels[dimension], fill = dimension),
                     color = "white",
                     fontface = "bold",
-                    size = 4,
+                    size = 5,
                     label.size = 0.2,
                     label.padding = ggplot2::unit(0.3, "lines"),
                     direction = "y",
+                    force = 0.5,
                     hjust = 0,
-                    nudge_x = 0.3,
+                    nudge_x = 0.2,
                     segment.size = 0.4,
                     segment.alpha = 0.6,
                     show.legend = FALSE

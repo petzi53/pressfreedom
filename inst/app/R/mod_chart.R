@@ -14,8 +14,9 @@ pal <- RColorBrewer::brewer.pal(12, "Paired")
 chartUI <- function(id) {
     ns <- shiny::NS(id)
     bslib::card(
+        height = "calc(100vh - 105px)",
         bslib::card_header(shiny::textOutput(ns("title"))),
-        plotly::plotlyOutput(ns("plot"))
+        plotly::plotlyOutput(ns("plot"), height = "100%")
     )
 }
 
@@ -80,7 +81,8 @@ chartServer <- function(id, rwb, var, country) {
                     ggplot2::xlab("Year") +
                     ggplot2::ylab("Rank")
 
-                plotly::ggplotly(p)
+                plotly::ggplotly(p) |>
+                    plotly::layout(font = list(size = 18))
             } else {
                 # Line chart for score and dimension variables
                 plotly::plot_ly(
@@ -95,6 +97,7 @@ chartServer <- function(id, rwb, var, country) {
                     marker = list(size = 20)
                 ) |>
                     plotly::layout(
+                        font  = list(size = 18),
                         xaxis = list(title = "Year"),
                         yaxis = list(title = y_title)
                     )

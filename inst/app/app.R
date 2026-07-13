@@ -34,17 +34,20 @@ ui <- bslib::page_sidebar(
     bslib::navset_hidden(
         id = "main_view",
         selected = "World Map",
-        bslib::nav_panel("World Map",        mapMainUI("map", rwb)),
+        bslib::nav_panel("World Map",         mapMainUI("map", rwb)),
         bslib::nav_panel("Compare Countries", compareMainUI("chart")),
-        bslib::nav_panel("Country Details",  countryMainUI("country"))
+        bslib::nav_panel("Country Details",   countryMainUI("country"))
     ),
     shiny::tags$style("
+        /* Dashboard should never scroll — fixes the scrollbar issue */
+        html, body { overflow: hidden; height: 100%; }
+
         /* Stack nav pills vertically in the sidebar */
-        .bslib-sidebar-layout .nav-pills {
+        .bslib-sidebar-layout > .sidebar > .sidebar-content .nav-pills {
             flex-direction: column;
         }
         /* Remove border and background from pill content area inside sidebar */
-        .bslib-sidebar-layout .tab-content {
+        .bslib-sidebar-layout > .sidebar > .sidebar-content .tab-content {
             border: none;
             background: transparent;
             padding-top: 0.75rem;
