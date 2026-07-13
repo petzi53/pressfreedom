@@ -36,17 +36,27 @@ countryServer <- function(id, rwb) {
         ns <- session$ns
 
         # Define the dimensions we care about
-        dim_cols <- c("score", "political_context", "economic_context", 
+        dim_cols <- c("score", "political_context", "economic_context",
                       "legal_context", "social_context", "safety")
-        
-        # Clean names for labels ("Law" padded to match width of longer labels)
+
+        # Clean names for display in annotations and hover
         dim_labels <- c(
-            "score" = "Global Score",
+            "score"             = "Global Score",
             "political_context" = "Politics",
-            "economic_context" = "Economy",
-            "legal_context" = "Law      ",
-            "social_context" = "Society",
-            "safety" = "Safety"
+            "economic_context"  = "Economy",
+            "legal_context"     = "Law",
+            "social_context"    = "Society",
+            "safety"            = "Safety"
+        )
+
+        # Okabe-Ito colorblind-safe palette; Global Score is black
+        color_map <- c(
+            "score"             = "#000000",
+            "political_context" = "#0072B2",
+            "economic_context"  = "#D55E00",
+            "legal_context"     = "#009E73",
+            "social_context"    = "#CC79A7",
+            "safety"            = "#56B4E9"
         )
 
         shiny::observeEvent(input$clear, {
@@ -69,19 +79,19 @@ countryServer <- function(id, rwb) {
                     shiny::p("Select a country to display the chart.")
                 )
             } else {
-                shiny::plotOutput(ns("plot_overview"), height = "100%")
+                plotly::plotlyOutput(ns("plot_overview"), height = "100%")
             }
         })
 
         # Overview Plot: All dimensions in one (2022 onwards)
-        output$plot_overview <- shiny::renderPlot({
+        output$plot_overview <- plotly::renderPlotly({
 
-            # Get all data for this country at once, filtering to 2022+
+            # Get all data for this country, filtering to 2022+
             data_long <- rwb |>
                 dplyr::filter(country_en == input$country, year_n >= 2022) |>
                 tidyr::pivot_longer(
-                    cols = dplyr::all_of(dim_cols),
-                    names_to = "dimension",
+                    cols      = dplyr::all_of(dim_cols),
+                    names_to  = "dimension",
                     values_to = "value"
                 ) |>
                 dplyr::mutate(dimension = factor(dimension, levels = dim_cols))
@@ -91,107 +101,57 @@ countryServer <- function(id, rwb) {
                          plotly::layout(title = "No data available"))
             }
 
-            # Create color mapping: colorblind-friendly palette
-            # Uses Okabe-Ito palette which is distinguishable for all types of colorblindness
-            # Global Score is black and thicker; other dimensions use colors
-            color_map <- c(
-                "score" = "#000000",           # Black (Global Score - de-emphasized)
-                "political_context" = "#0072B2",   # Blue
-                "economic_context" = "#D55E00",    # Red-orange
-                "legal_context" = "#009E73",       # Green
-                "social_context" = "#CC79A7",      # Pink
-                "safety" = "#56B4E9"                # Light blue
-            )
+            max_year <- max(data_long$year_n)
 
-            # Uniform line width across all dimensions
-            linewidth_map <- c(
-                "score" = 2.5,
-                "political_context" = 2.5,
-                "economic_context" = 2.5,
-                "legal_context" = 2.5,
-                "social_context" = 2.5,
-                "safety" = 2.5
-            )
-
-            # Get start and end values for labeling
-            data_labels_start <- data_long |>
+            # Sort dimensions by their value at max_year (descending) so the
+            # legend order matches the vertical position of lines in the chart
+            end_vals <- data_long |>
+                dplyr::filter(year_n == max_year) |>
                 dplyr::group_by(dimension) |>
-                dplyr::filter(year_n == min(year_n)) |>
-                dplyr::ungroup() |>
-                dplyr::mutate(
-                    label_type = "start",
-                    label_hjust = 1.1,
-                    label_nudge = -0.3
+                dplyr::summarise(value = dplyr::first(value), .groups = "drop") |>
+                dplyr::arrange(dplyr::desc(value))
+
+            dims_ordered <- as.character(end_vals$dimension)
+
+            # Start with an empty plot, then add one trace per dimension
+            p <- plotly::plot_ly()
+
+            for (dim in dims_ordered) {
+                df_dim <- data_long |> dplyr::filter(dimension == dim)
+
+                p <- p |>
+                    plotly::add_trace(
+                        data       = df_dim,
+                        x          = ~year_n,
+                        y          = ~value,
+                        type       = "scatter",
+                        mode       = "lines+markers",
+                        name       = dim_labels[dim],
+                        line       = list(color = color_map[dim], width = 4),
+                        marker     = list(color = color_map[dim], size = 20),
+                        hovertemplate = paste0(
+                            "<b>", dim_labels[dim], "</b><br>",
+                            "Year: %{x}<br>",
+                            "Value: %{y:.1f}<extra></extra>"
+                        )
+                    )
+            }
+
+            p |>
+                plotly::layout(
+                    font       = list(size = 16),
+                    showlegend = TRUE,
+                    legend     = list(
+                        orientation = "v",
+                        x           = 1.02,
+                        xanchor     = "left",
+                        y           = 1,
+                        yanchor     = "top"
+                    ),
+                    xaxis  = list(title = "Year", dtick = 1),
+                    yaxis  = list(title = "Index Value"),
+                    margin = list(r = 120)
                 )
-
-            data_labels_end <- data_long |>
-                dplyr::group_by(dimension) |>
-                dplyr::filter(year_n == max(year_n)) |>
-                dplyr::ungroup() |>
-                dplyr::mutate(
-                    label_type = "end",
-                    label_hjust = -0.1,
-                    label_nudge = 0.3
-                )
-
-            data_labels <- dplyr::bind_rows(data_labels_start, data_labels_end)
-
-            p <- ggplot2::ggplot(data_long, ggplot2::aes(
-                    x = year_n, 
-                    y = value, 
-                    color = dimension
-                )) +
-                ggplot2::geom_line(ggplot2::aes(linewidth = dimension)) +
-                ggplot2::geom_point(size = 5) +
-                ggplot2::scale_color_manual(values = color_map) +
-                ggplot2::scale_linewidth_manual(values = linewidth_map) +
-                ggplot2::theme_minimal(base_size = 20) +
-                ggplot2::labs(x = NULL, y = "Index Value") +
-                ggplot2::theme(
-                    legend.position = "none",
-                    axis.text  = ggplot2::element_text(face = "bold"),
-                    axis.title = ggplot2::element_text(face = "bold")
-                )
-
-            p +
-                ggplot2::scale_x_continuous(
-                    expand = ggplot2::expansion(mult = 0.25)
-                ) +
-                # Start-of-line labels: right-aligned, nudged left
-                ggrepel::geom_label_repel(
-                    data = data_labels_start,
-                    ggplot2::aes(label = dim_labels[dimension], fill = dimension),
-                    color = "white",
-                    fontface = "bold",
-                    size = 5,
-                    label.size = 0.2,
-                    label.padding = ggplot2::unit(0.3, "lines"),
-                    direction = "y",
-                    force = 0.5,
-                    hjust = 1,
-                    nudge_x = -0.2,
-                    segment.size = 0.4,
-                    segment.alpha = 0.6,
-                    show.legend = FALSE
-                ) +
-                # End-of-line labels: left-aligned, nudged right
-                ggrepel::geom_label_repel(
-                    data = data_labels_end,
-                    ggplot2::aes(label = dim_labels[dimension], fill = dimension),
-                    color = "white",
-                    fontface = "bold",
-                    size = 5,
-                    label.size = 0.2,
-                    label.padding = ggplot2::unit(0.3, "lines"),
-                    direction = "y",
-                    force = 0.5,
-                    hjust = 0,
-                    nudge_x = 0.2,
-                    segment.size = 0.4,
-                    segment.alpha = 0.6,
-                    show.legend = FALSE
-                ) +
-                ggplot2::scale_fill_manual(values = color_map, guide = "none")
         })
     })
 }

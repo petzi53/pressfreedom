@@ -96,9 +96,23 @@ chartServer <- function(id, rwb, var, country) {
                 plotly::ggplotly(p) |>
                     plotly::layout(font = list(size = 18))
             } else {
+                # Sort countries by descending value at max year so the legend
+                # order matches the vertical position of the lines
+                max_year   <- max(data()$year_n)
+                country_order <- data() |>
+                    dplyr::filter(year_n == max_year) |>
+                    dplyr::arrange(dplyr::desc(.data[[var()]])) |>
+                    dplyr::pull(country_en) |>
+                    as.character()
+
+                df_ordered <- data() |>
+                    dplyr::mutate(
+                        country_en = factor(country_en, levels = country_order)
+                    )
+
                 # Line chart for score and dimension variables
                 plotly::plot_ly(
-                    data   = data(),
+                    data   = df_ordered,
                     x      = ~year_n,
                     y      = as.formula(paste0("~", var())),
                     color  = ~country_en,
