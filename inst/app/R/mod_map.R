@@ -39,8 +39,16 @@ mapMainUI <- function(id, rwb) {
         inline = TRUE
       )
     ),
-    # Map visualization
-    plotly::plotlyOutput(ns("map"), height = "600px")
+    # Map visualization — fluid height (matches the calc(100vh - Xpx) pattern
+    # used by the other cards in mod_chart.R / mod_country.R). The 190px
+    # offset accounts for the navbar plus the controls row above; once
+    # Strategy A moves the controls into the sidebar this will shrink to
+    # match the ~105px offset used by the sibling modules.
+    bslib::card(
+      height = "calc(100vh - 190px)",
+      full_screen = TRUE,
+      plotly::plotlyOutput(ns("map"), height = "100%")
+    )
   )
 }
 
