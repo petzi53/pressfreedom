@@ -104,19 +104,18 @@ mapServer <- function(id, rwb, reset = NULL) {
           width = "150px"
         )
       } else {
-        # Rank ranges: 7 tiers based on percentiles
+        # Rank ranges: 5 tiers based on percentiles
+        # Rank 1 is included in Top 2.5%; last rank is included in Bottom 2.5%
         shiny::selectInput(
           ns("range_bin"),
           label = "Rank Range",
           choices = c(
             "All Ranks" = "all",
-            "Rank 1" = "rank-1",
             "Top 2.5%" = "rank-2",
             "2.5% - 15%" = "rank-3",
             "15% - 85%" = "rank-4",
             "85% - 97.5%" = "rank-5",
-            "Bottom 2.5%" = "rank-6",
-            "Last Rank" = "rank-7"
+            "Bottom 2.5%" = "rank-6"
           ),
           selected = "all",
           width = "200px"
@@ -136,30 +135,24 @@ mapServer <- function(id, rwb, reset = NULL) {
     }
 
     # Rank binning function based on percentiles
-    # Divides countries into 7 tiers:
-    # 1: rank 1 (the best)
-    # 2: top 2.5% (elite)
-    # 3: next 12.5% (high performers)
-    # 4: next 70% (bulk)
-    # 5: next 12.5% (low performers)
-    # 6: bottom 2.5% (critical)
-    # 7: highest rank (the worst)
+    # Divides countries into 5 tiers:
+    # 2: top 2.5%  — includes rank 1
+    # 3: 2.5%–15%
+    # 4: 15%–85%   — bulk of countries
+    # 5: 85%–97.5%
+    # 6: bottom 2.5% — includes last rank
     bin_rank <- function(rank, max_rank) {
-      p1 <- 1
-      p2_5 <- max_rank * 0.025
-      p15 <- max_rank * 0.15
-      p85 <- max_rank * 0.85
-      p97_5 <- max_rank * 0.975
-      p100 <- max_rank
+      p2_5  <- ceiling(max_rank * 0.025)
+      p15   <- floor(max_rank * 0.15)
+      p85   <- floor(max_rank * 0.85)
+      p97_5 <- floor(max_rank * 0.975)
 
       dplyr::case_when(
-        rank == 1 ~ "rank-1",
-        rank <= p2_5 ~ "rank-2",
-        rank <= p15 ~ "rank-3",
-        rank <= p85 ~ "rank-4",
+        rank <= p2_5  ~ "rank-2",
+        rank <= p15   ~ "rank-3",
+        rank <= p85   ~ "rank-4",
         rank <= p97_5 ~ "rank-5",
-        rank <= p100 ~ "rank-6",
-        TRUE ~ "rank-7"
+        TRUE          ~ "rank-6"
       )
     }
 
@@ -299,19 +292,15 @@ mapServer <- function(id, rwb, reset = NULL) {
       }
 
       # Build choropleth
-      plotly::plot_geo(
-        data,
-        locations = ~iso,
-        z = z_values,
-        text = hovertext,
-        hovertemplate = "%{text}<extra></extra>"
-      ) |>
+      plotly::plot_geo(data, locations = ~iso, z = z_values) |>
         plotly::add_trace(
           type = "choropleth",
           colorscale = colorscale,
           reversescale = reversescale,
           zmin = z_min,
           zmax = z_max,
+          text = hovertext,
+          hovertemplate = "%{text}<extra></extra>",
           colorbar = list(
             title = z_label,
             # For rank: show inverted tick labels (1 at top = best)
