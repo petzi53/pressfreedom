@@ -2,8 +2,10 @@
 ## Map module: interactive geographic visualization of press freedom scores/ranks
 ##
 ## mapSidebarUI() — filter controls (year, zone, metric) for the sidebar
-## mapMainUI()    — choropleth output with collapsible country detail panel
-## mapServer()    — reactive filtering, choropleth rendering, country detail sidebar
+## mapMainUI()    — choropleth output
+## mapServer()    — reactive filtering and choropleth rendering; full country
+##                  detail (score/rank/contexts/safety) surfaces in the hover
+##                  tooltip rather than a click-triggered sidebar panel
 
 mapSidebarUI <- function(id, rwb) {
   ns <- shiny::NS(id)
@@ -32,9 +34,7 @@ mapSidebarUI <- function(id, rwb) {
       choices = c("Score" = "score", "Rank" = "rank"),
       selected = "score",
       inline = TRUE
-    ),
-    shiny::hr(),
-    shiny::uiOutput(ns("country_detail"))
+    )
   )
 }
 
@@ -241,6 +241,23 @@ mapServer <- function(id, rwb, reset = NULL) {
       metric <- input$metric
       max_rank <- max(rwb$rank, na.rm = TRUE)
 
+      # Format a numeric vector for tooltip display, falling back to "–" for
+      # NA (dimension scores are only available for 2022+)
+      fmt_or_dash <- function(x) {
+        ifelse(is.na(x), "–", as.character(round(x, 1)))
+      }
+
+      # Detail lines shared by both metric branches: dimension context
+      # scores and safety, appended to the hover tooltip so all country
+      # detail is available on hover (no click/sidebar panel needed)
+      detail_lines <- paste0(
+        "Political: ", fmt_or_dash(data$political_context), "<br>",
+        "Economic: ", fmt_or_dash(data$economic_context), "<br>",
+        "Legal: ", fmt_or_dash(data$legal_context), "<br>",
+        "Social: ", fmt_or_dash(data$social_context), "<br>",
+        "Safety: ", fmt_or_dash(data$safety)
+      )
+
       # RSF-style color scale: dark red (worst) → orange → yellow → light green → dark green (best)
       # Based on ColorBrewer RdYlGn 5-class; luminance variation aids colorblind legibility
       rsf_colorscale <- list(
@@ -273,7 +290,9 @@ mapServer <- function(id, rwb, reset = NULL) {
           data$range_bin,
           "<br>",
           "Zone: ",
-          data$zone
+          data$zone,
+          "<br>",
+          detail_lines
         )
       } else {
         # Rank metric: invert rank values so rank 1 (best) maps to high color intensity
@@ -297,7 +316,9 @@ mapServer <- function(id, rwb, reset = NULL) {
           data$range_bin,
           "<br>",
           "Zone: ",
-          data$zone
+          data$zone,
+          "<br>",
+          detail_lines
         )
       }
 
@@ -367,107 +388,6 @@ mapServer <- function(id, rwb, reset = NULL) {
           ),
           margin = list(l = 0, r = 0, t = 10, b = 0)
         )
-    })
-
-    # Display country detail in sidebar when a country is clicked
-    output$country_detail <- shiny::renderUI({
-      data <- map_data()
-
-      # Try to extract clicked point from plotly event
-      click_data <- plotly::event_data("plotly_click")
-
-      if (is.null(click_data)) {
-        shiny::p(
-          "Click any country on the map to see details.",
-          class = "text-muted"
-        )
-      } else {
-        # Get the index of the clicked point
-        idx <- click_data$pointNumber[1] + 1
-        if (idx <= nrow(data)) {
-          country_row <- data[idx, ]
-
-          shiny::tagList(
-            shiny::h5(country_row$country_en[[1]]),
-            shiny::hr(),
-            shiny::tags$table(
-              class = "table table-sm",
-              shiny::tags$tbody(
-                shiny::tags$tr(
-                  shiny::tags$td("Score"),
-                  shiny::tags$td(shiny::strong(round(
-                    country_row$score[[1]],
-                    1
-                  )))
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Rank"),
-                  shiny::tags$td(shiny::strong(country_row$rank[[1]]))
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Zone"),
-                  shiny::tags$td(country_row$zone[[1]])
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Political"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$political_context[[1]])) {
-                      round(country_row$political_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Economic"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$economic_context[[1]])) {
-                      round(country_row$economic_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Legal"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$legal_context[[1]])) {
-                      round(country_row$legal_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Social"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$social_context[[1]])) {
-                      round(country_row$social_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Safety"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$safety[[1]])) {
-                      round(country_row$safety[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                )
-              )
-            )
-          )
-        } else {
-          shiny::p(
-            "Click any country on the map to see details.",
-            class = "text-muted"
-          )
-        }
-      }
     })
   })
 }
