@@ -2,45 +2,55 @@
 ## Map module: interactive geographic visualization of press freedom scores/ranks
 ##
 ## mapSidebarUI() — filter controls (year, zone, metric) for the sidebar
-## mapMainUI()    — choropleth output with collapsible country detail panel
-## mapServer()    — reactive filtering, choropleth rendering, country detail sidebar
+## mapMainUI()    — choropleth output
+## mapServer()    — reactive filtering and choropleth rendering; full country
+##                  detail (score/rank/contexts/safety) surfaces in the hover
+##                  tooltip rather than a click-triggered sidebar panel
 
-mapSidebarUI <- function(id) {
+mapSidebarUI <- function(id, rwb) {
   ns <- shiny::NS(id)
-  shiny::div(shiny::uiOutput(ns("country_detail")))
+  shiny::tagList(
+    # Strategy A: filter controls live in the sidebar so the main panel is
+    # dedicated entirely to the map. Stacked vertically to fit the sidebar
+    # width, above the (dynamic) country-detail panel.
+    shiny::selectInput(
+      ns("year"),
+      label = "Year",
+      choices = sort(unique(rwb$year_n), decreasing = TRUE),
+      selected = max(rwb$year_n, na.rm = TRUE),
+      width = "100%"
+    ),
+    shiny::selectInput(
+      ns("zone"),
+      label = "Zone",
+      choices = c("World", sort(as.character(unique(rwb$zone)))),
+      selected = "World",
+      width = "100%"
+    ),
+    shiny::uiOutput(ns("range_selector_ui")),
+    shiny::radioButtons(
+      ns("metric"),
+      label = "Metric",
+      choices = c("Score" = "score", "Rank" = "rank"),
+      selected = "score",
+      inline = TRUE
+    )
+  )
 }
 
 mapMainUI <- function(id, rwb) {
   ns <- shiny::NS(id)
   shiny::tagList(
-    # Filter controls in a compact flex row — each input sized to its content
-    shiny::div(
-      style = "display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;",
-      shiny::selectInput(
-        ns("year"),
-        label = "Year",
-        choices = sort(unique(rwb$year_n), decreasing = TRUE),
-        selected = max(rwb$year_n, na.rm = TRUE),
-        width = "90px"
-      ),
-      shiny::selectInput(
-        ns("zone"),
-        label = "Zone",
-        choices = c("World", sort(as.character(unique(rwb$zone)))),
-        selected = "World",
-        width = "175px"
-      ),
-      shiny::uiOutput(ns("range_selector_ui")),
-      shiny::radioButtons(
-        ns("metric"),
-        label = "Metric",
-        choices = c("Score" = "score", "Rank" = "rank"),
-        selected = "score",
-        inline = TRUE
-      )
-    ),
-    # Map visualization
-    plotly::plotlyOutput(ns("map"), height = "600px")
+    # Map visualization — fluid height (matches the calc(100vh - Xpx) pattern
+    # used by the other cards in mod_chart.R / mod_country.R). With the
+    # controls row removed from the main panel (Strategy A), only the
+    # navbar remains above the card, so the offset matches the ~105px used
+    # by the sibling modules.
+    bslib::card(
+      height = "calc(100vh - 105px)",
+      full_screen = TRUE,
+      plotly::plotlyOutput(ns("map"), height = "100%")
+    )
   )
 }
 
@@ -101,7 +111,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             "0–20" = "0-20"
           ),
           selected = "all",
-          width = "150px"
+          width = "100%"
         )
       } else {
         # Rank ranges: 5 tiers based on percentiles
@@ -118,7 +128,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             "Bottom 2.5%" = "rank-6"
           ),
           selected = "all",
-          width = "200px"
+          width = "100%"
         )
       }
     })
@@ -231,6 +241,34 @@ mapServer <- function(id, rwb, reset = NULL) {
       metric <- input$metric
       max_rank <- max(rwb$rank, na.rm = TRUE)
 
+      # Format a numeric vector for tooltip display, falling back to "–" for
+      # NA (an individual country missing a value despite dimension data
+      # being available for the selected year — expected to be rare)
+      fmt_or_dash <- function(x) {
+        ifelse(is.na(x), "–", as.character(round(x, 1)))
+      }
+
+      # Dimension scores are only available from 2022 onward. Rather than
+      # showing five "–" placeholders per country for every earlier year,
+      # check once (year-level, not row-level) and substitute a single
+      # explanatory line.
+      has_dimension_data <- any(!is.na(data$political_context))
+
+      # Detail lines shared by both metric branches: dimension context
+      # scores and safety, appended to the hover tooltip so all country
+      # detail is available on hover (no click/sidebar panel needed)
+      detail_lines <- if (has_dimension_data) {
+        paste0(
+          "Political: ", fmt_or_dash(data$political_context), "<br>",
+          "Economic: ", fmt_or_dash(data$economic_context), "<br>",
+          "Legal: ", fmt_or_dash(data$legal_context), "<br>",
+          "Social: ", fmt_or_dash(data$social_context), "<br>",
+          "Safety: ", fmt_or_dash(data$safety)
+        )
+      } else {
+        "Dimension scores available from 2022"
+      }
+
       # RSF-style color scale: dark red (worst) → orange → yellow → light green → dark green (best)
       # Based on ColorBrewer RdYlGn 5-class; luminance variation aids colorblind legibility
       rsf_colorscale <- list(
@@ -263,7 +301,9 @@ mapServer <- function(id, rwb, reset = NULL) {
           data$range_bin,
           "<br>",
           "Zone: ",
-          data$zone
+          data$zone,
+          "<br>",
+          detail_lines
         )
       } else {
         # Rank metric: invert rank values so rank 1 (best) maps to high color intensity
@@ -287,7 +327,9 @@ mapServer <- function(id, rwb, reset = NULL) {
           data$range_bin,
           "<br>",
           "Zone: ",
-          data$zone
+          data$zone,
+          "<br>",
+          detail_lines
         )
       }
 
@@ -313,16 +355,33 @@ mapServer <- function(id, rwb, reset = NULL) {
               as.character(seq(1, max_rank, by = max_rank / 4))
             } else {
               NULL
-            }
+            },
+            # Strategy C: narrower colorbar frees up horizontal space
+            len = 0.7,
+            thickness = 15
           ),
           marker = list(line = list(width = 0.5))
         ) |>
         plotly::layout(
-          title = paste0(
-            "Press Freedom ",
-            stringr::str_to_title(metric),
-            " – ",
-            input$year
+          # Strategy C: title moved into an in-plot annotation (top-left) so
+          # the reclaimed 40px margin goes to the map instead of a title bar
+          annotations = list(
+            list(
+              text = paste0(
+                "Press Freedom ",
+                stringr::str_to_title(metric),
+                " – ",
+                input$year
+              ),
+              xref = "paper",
+              yref = "paper",
+              x = 0,
+              y = 1,
+              xanchor = "left",
+              yanchor = "top",
+              showarrow = FALSE,
+              font = list(size = 14)
+            )
           ),
           geo = list(
             showland = TRUE,
@@ -331,111 +390,15 @@ mapServer <- function(id, rwb, reset = NULL) {
             countrywidth = 0.5,
             showocean = TRUE,
             oceancolor = "rgb(204, 229, 255)",
-            projection = list(type = "natural earth")
+            # Strategy C: Robinson projection reduces the polar inflation of
+            # Natural Earth; latitude clipping drops Antarctica/Arctic, where
+            # there is no press freedom data, freeing up plot area for the
+            # inhabited landmass
+            projection = list(type = "robinson"),
+            lataxis = list(range = c(-75, 80))
           ),
-          margin = list(l = 0, r = 0, t = 40, b = 0)
+          margin = list(l = 0, r = 0, t = 10, b = 0)
         )
-    })
-
-    # Display country detail in sidebar when a country is clicked
-    output$country_detail <- shiny::renderUI({
-      data <- map_data()
-
-      # Try to extract clicked point from plotly event
-      click_data <- plotly::event_data("plotly_click")
-
-      if (is.null(click_data)) {
-        shiny::p(
-          "Click any country on the map to see details.",
-          class = "text-muted"
-        )
-      } else {
-        # Get the index of the clicked point
-        idx <- click_data$pointNumber[1] + 1
-        if (idx <= nrow(data)) {
-          country_row <- data[idx, ]
-
-          shiny::tagList(
-            shiny::h5(country_row$country_en[[1]]),
-            shiny::hr(),
-            shiny::tags$table(
-              class = "table table-sm",
-              shiny::tags$tbody(
-                shiny::tags$tr(
-                  shiny::tags$td("Score"),
-                  shiny::tags$td(shiny::strong(round(
-                    country_row$score[[1]],
-                    1
-                  )))
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Rank"),
-                  shiny::tags$td(shiny::strong(country_row$rank[[1]]))
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Zone"),
-                  shiny::tags$td(country_row$zone[[1]])
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Political"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$political_context[[1]])) {
-                      round(country_row$political_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Economic"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$economic_context[[1]])) {
-                      round(country_row$economic_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Legal"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$legal_context[[1]])) {
-                      round(country_row$legal_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Social"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$social_context[[1]])) {
-                      round(country_row$social_context[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                ),
-                shiny::tags$tr(
-                  shiny::tags$td("Safety"),
-                  shiny::tags$td(
-                    if (!is.na(country_row$safety[[1]])) {
-                      round(country_row$safety[[1]], 1)
-                    } else {
-                      "–"
-                    }
-                  )
-                )
-              )
-            )
-          )
-        } else {
-          shiny::p(
-            "Click any country on the map to see details.",
-            class = "text-muted"
-          )
-        }
-      }
     })
   })
 }
