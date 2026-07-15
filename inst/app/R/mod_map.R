@@ -242,21 +242,32 @@ mapServer <- function(id, rwb, reset = NULL) {
       max_rank <- max(rwb$rank, na.rm = TRUE)
 
       # Format a numeric vector for tooltip display, falling back to "–" for
-      # NA (dimension scores are only available for 2022+)
+      # NA (an individual country missing a value despite dimension data
+      # being available for the selected year — expected to be rare)
       fmt_or_dash <- function(x) {
         ifelse(is.na(x), "–", as.character(round(x, 1)))
       }
 
+      # Dimension scores are only available from 2022 onward. Rather than
+      # showing five "–" placeholders per country for every earlier year,
+      # check once (year-level, not row-level) and substitute a single
+      # explanatory line.
+      has_dimension_data <- any(!is.na(data$political_context))
+
       # Detail lines shared by both metric branches: dimension context
       # scores and safety, appended to the hover tooltip so all country
       # detail is available on hover (no click/sidebar panel needed)
-      detail_lines <- paste0(
-        "Political: ", fmt_or_dash(data$political_context), "<br>",
-        "Economic: ", fmt_or_dash(data$economic_context), "<br>",
-        "Legal: ", fmt_or_dash(data$legal_context), "<br>",
-        "Social: ", fmt_or_dash(data$social_context), "<br>",
-        "Safety: ", fmt_or_dash(data$safety)
-      )
+      detail_lines <- if (has_dimension_data) {
+        paste0(
+          "Political: ", fmt_or_dash(data$political_context), "<br>",
+          "Economic: ", fmt_or_dash(data$economic_context), "<br>",
+          "Legal: ", fmt_or_dash(data$legal_context), "<br>",
+          "Social: ", fmt_or_dash(data$social_context), "<br>",
+          "Safety: ", fmt_or_dash(data$safety)
+        )
+      } else {
+        "Dimension scores available from 2022"
+      }
 
       # RSF-style color scale: dark red (worst) → orange → yellow → light green → dark green (best)
       # Based on ColorBrewer RdYlGn 5-class; luminance variation aids colorblind legibility
