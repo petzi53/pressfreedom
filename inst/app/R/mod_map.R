@@ -313,16 +313,33 @@ mapServer <- function(id, rwb, reset = NULL) {
               as.character(seq(1, max_rank, by = max_rank / 4))
             } else {
               NULL
-            }
+            },
+            # Strategy C: narrower colorbar frees up horizontal space
+            len = 0.7,
+            thickness = 15
           ),
           marker = list(line = list(width = 0.5))
         ) |>
         plotly::layout(
-          title = paste0(
-            "Press Freedom ",
-            stringr::str_to_title(metric),
-            " – ",
-            input$year
+          # Strategy C: title moved into an in-plot annotation (top-left) so
+          # the reclaimed 40px margin goes to the map instead of a title bar
+          annotations = list(
+            list(
+              text = paste0(
+                "Press Freedom ",
+                stringr::str_to_title(metric),
+                " – ",
+                input$year
+              ),
+              xref = "paper",
+              yref = "paper",
+              x = 0,
+              y = 1,
+              xanchor = "left",
+              yanchor = "top",
+              showarrow = FALSE,
+              font = list(size = 14)
+            )
           ),
           geo = list(
             showland = TRUE,
@@ -331,9 +348,14 @@ mapServer <- function(id, rwb, reset = NULL) {
             countrywidth = 0.5,
             showocean = TRUE,
             oceancolor = "rgb(204, 229, 255)",
-            projection = list(type = "natural earth")
+            # Strategy C: Robinson projection reduces the polar inflation of
+            # Natural Earth; latitude clipping drops Antarctica/Arctic, where
+            # there is no press freedom data, freeing up plot area for the
+            # inhabited landmass
+            projection = list(type = "robinson"),
+            lataxis = list(range = c(-75, 80))
           ),
-          margin = list(l = 0, r = 0, t = 40, b = 0)
+          margin = list(l = 0, r = 0, t = 10, b = 0)
         )
     })
 
