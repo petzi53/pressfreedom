@@ -5,47 +5,49 @@
 ## mapMainUI()    — choropleth output with collapsible country detail panel
 ## mapServer()    — reactive filtering, choropleth rendering, country detail sidebar
 
-mapSidebarUI <- function(id) {
+mapSidebarUI <- function(id, rwb) {
   ns <- shiny::NS(id)
-  shiny::div(shiny::uiOutput(ns("country_detail")))
+  shiny::tagList(
+    # Strategy A: filter controls live in the sidebar so the main panel is
+    # dedicated entirely to the map. Stacked vertically to fit the sidebar
+    # width, above the (dynamic) country-detail panel.
+    shiny::selectInput(
+      ns("year"),
+      label = "Year",
+      choices = sort(unique(rwb$year_n), decreasing = TRUE),
+      selected = max(rwb$year_n, na.rm = TRUE),
+      width = "100%"
+    ),
+    shiny::selectInput(
+      ns("zone"),
+      label = "Zone",
+      choices = c("World", sort(as.character(unique(rwb$zone)))),
+      selected = "World",
+      width = "100%"
+    ),
+    shiny::uiOutput(ns("range_selector_ui")),
+    shiny::radioButtons(
+      ns("metric"),
+      label = "Metric",
+      choices = c("Score" = "score", "Rank" = "rank"),
+      selected = "score",
+      inline = TRUE
+    ),
+    shiny::hr(),
+    shiny::uiOutput(ns("country_detail"))
+  )
 }
 
 mapMainUI <- function(id, rwb) {
   ns <- shiny::NS(id)
   shiny::tagList(
-    # Filter controls in a compact flex row — each input sized to its content
-    shiny::div(
-      style = "display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;",
-      shiny::selectInput(
-        ns("year"),
-        label = "Year",
-        choices = sort(unique(rwb$year_n), decreasing = TRUE),
-        selected = max(rwb$year_n, na.rm = TRUE),
-        width = "90px"
-      ),
-      shiny::selectInput(
-        ns("zone"),
-        label = "Zone",
-        choices = c("World", sort(as.character(unique(rwb$zone)))),
-        selected = "World",
-        width = "175px"
-      ),
-      shiny::uiOutput(ns("range_selector_ui")),
-      shiny::radioButtons(
-        ns("metric"),
-        label = "Metric",
-        choices = c("Score" = "score", "Rank" = "rank"),
-        selected = "score",
-        inline = TRUE
-      )
-    ),
     # Map visualization — fluid height (matches the calc(100vh - Xpx) pattern
-    # used by the other cards in mod_chart.R / mod_country.R). The 190px
-    # offset accounts for the navbar plus the controls row above; once
-    # Strategy A moves the controls into the sidebar this will shrink to
-    # match the ~105px offset used by the sibling modules.
+    # used by the other cards in mod_chart.R / mod_country.R). With the
+    # controls row removed from the main panel (Strategy A), only the
+    # navbar remains above the card, so the offset matches the ~105px used
+    # by the sibling modules.
     bslib::card(
-      height = "calc(100vh - 190px)",
+      height = "calc(100vh - 105px)",
       full_screen = TRUE,
       plotly::plotlyOutput(ns("map"), height = "100%")
     )
@@ -109,7 +111,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             "0–20" = "0-20"
           ),
           selected = "all",
-          width = "150px"
+          width = "100%"
         )
       } else {
         # Rank ranges: 5 tiers based on percentiles
@@ -126,7 +128,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             "Bottom 2.5%" = "rank-6"
           ),
           selected = "all",
-          width = "200px"
+          width = "100%"
         )
       }
     })

@@ -30,7 +30,7 @@ ui <- bslib::page_sidebar(
         width = 260,
         bslib::navset_pill(
             id = "view",
-            bslib::nav_panel("World Map",        mapSidebarUI("map")),
+            bslib::nav_panel("World Map",        mapSidebarUI("map", rwb)),
             bslib::nav_panel("Compare Countries", compareSidebarUI("inputs", rwb)),
             bslib::nav_panel("Country Details",  countrySidebarUI("country", rwb))
         )
