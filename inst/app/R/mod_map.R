@@ -23,7 +23,7 @@ mapSidebarUI <- function(id, rwb) {
     shiny::selectInput(
       ns("zone"),
       label = "Zone",
-      choices = c("World", sort(as.character(unique(rwb$zone)))),
+      choices = c("World", sort(unique(rwb$zone))),
       selected = "World",
       width = "100%"
     ),
@@ -49,6 +49,19 @@ mapMainUI <- function(id, rwb) {
     bslib::card(
       height = "calc(100vh - 105px)",
       full_screen = TRUE,
+      style = "position: relative;",
+      # Floating country dropdown, positioned near the in-plot title
+      # (top-left annotation) but offset right, clear of plotly's modebar
+      # icons at the top-right of the plot. Exact offsets may need visual
+      # tuning once running.
+      shiny::div(
+        style = paste(
+          "position: absolute; top: 8px; right: 190px; z-index: 20;",
+          "background: rgba(255,255,255,0.9); border-radius: 4px;",
+          "padding: 2px 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);"
+        ),
+        shiny::uiOutput(ns("country_select_ui"))
+      ),
       plotly::plotlyOutput(ns("map"), height = "100%")
     )
   )
@@ -66,6 +79,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             selected = max(rwb$year_n, na.rm = TRUE))
         shiny::updateSelectInput(session, "zone",   selected = "World")
         shiny::updateRadioButtons(session, "metric", selected = "score")
+        shiny::updateSelectInput(session, "selected_country", selected = "")
       }, ignoreInit = TRUE)
     }
 
@@ -133,6 +147,44 @@ mapServer <- function(id, rwb, reset = NULL) {
       }
     })
 
+    # Country choices for the floating dropdown: alphabetically sorted,
+    # restricted to the countries present for the current year *and* zone
+    # filter (independent of metric/range-bin, so narrowing the range
+    # doesn't shrink the list — only year/zone do)
+    country_choices <- shiny::reactive({
+      shiny::req(input$year, input$zone)
+
+      selected_zones <- if (input$zone == "World") {
+        unique(rwb$zone)
+      } else {
+        input$zone
+      }
+
+      rwb |>
+        dplyr::filter(year_n == input$year, zone %in% selected_zones) |>
+        dplyr::pull(country_en) |>
+        unique() |>
+        sort()
+    })
+
+    # Floating country dropdown (rendered in the map card, not the sidebar)
+    output$country_select_ui <- shiny::renderUI({
+      choices <- country_choices()
+
+      # Preserve the current selection across year/zone changes if it's
+      # still valid; otherwise fall back to "None"
+      current <- shiny::isolate(input$selected_country)
+      selected <- if (!is.null(current) && current %in% choices) current else ""
+
+      shiny::selectInput(
+        ns("selected_country"),
+        label = NULL,
+        choices = c("None" = "", choices),
+        selected = selected,
+        width = "180px"
+      )
+    })
+
     # Score binning function
     bin_score <- function(score) {
       dplyr::case_when(
@@ -172,13 +224,12 @@ mapServer <- function(id, rwb, reset = NULL) {
 
       # If "World" is selected, include all zones; otherwise use the selected zone
       selected_zones <- if (input$zone == "World") {
-        as.character(unique(rwb$zone))
+        unique(rwb$zone)
       } else {
         input$zone
       }
 
       result <- rwb |>
-        dplyr::mutate(zone = as.character(zone)) |>
         dplyr::filter(
           year_n == input$year,
           zone %in% selected_zones
@@ -333,8 +384,29 @@ mapServer <- function(id, rwb, reset = NULL) {
         )
       }
 
+      # Resolve the dropdown's selected country (if any) to an iso code and
+      # its 0-based point index within this trace's data, for the
+      # selection outline and hover/pulse JS below. The selected country
+      # may have dropped out of the current year/zone/range filter (e.g.
+      # narrowing the range bin) — in that case treat it as unselected here.
+      selected_country <- input$selected_country
+      selected_iso <- NULL
+      selected_idx <- -1
+      if (!is.null(selected_country) && nzchar(selected_country)) {
+        match_row <- which(data$country_en == selected_country)
+        if (length(match_row) == 1 && data$iso[match_row] %in% data$iso) {
+          selected_iso <- data$iso[match_row]
+          selected_idx <- match_row - 1L # 0-based index for JS
+        }
+      }
+
+      # Default (non-hovered) border styling — explicit so the hover/pulse
+      # JS below can restyle relative to a known baseline
+      base_border_width <- 0.5
+      base_border_color <- "rgb(180, 180, 180)"
+
       # Build choropleth
-      plotly::plot_geo(data, locations = ~iso, z = z_values) |>
+      p <- plotly::plot_geo(data, locations = ~iso, z = z_values) |>
         plotly::add_trace(
           type = "choropleth",
           colorscale = colorscale,
@@ -360,8 +432,27 @@ mapServer <- function(id, rwb, reset = NULL) {
             len = 0.7,
             thickness = 15
           ),
-          marker = list(line = list(width = 0.5))
-        ) |>
+          marker = list(line = list(width = base_border_width, color = base_border_color))
+        )
+
+      # Selection outline: a second, fill-transparent choropleth trace
+      # covering only the selected country, giving it an independently
+      # styled (dashed black) border without touching the shared score/rank
+      # color scale. Only added when a valid selection exists.
+      if (!is.null(selected_iso)) {
+        p <- p |>
+          plotly::add_trace(
+            type = "choropleth",
+            locations = selected_iso,
+            z = 1,
+            showscale = FALSE,
+            colorscale = list(list(0, "rgba(0,0,0,0)"), list(1, "rgba(0,0,0,0)")),
+            marker = list(line = list(color = "black", width = 3, dash = "dash")),
+            hoverinfo = "skip"
+          )
+      }
+
+      p <- p |>
         plotly::layout(
           # Strategy C: title moved into an in-plot annotation (top-left) so
           # the reclaimed 40px margin goes to the map instead of a title bar
@@ -399,6 +490,80 @@ mapServer <- function(id, rwb, reset = NULL) {
           ),
           margin = list(l = 0, r = 0, t = 10, b = 0)
         )
+
+      # Hover / selection-pulse behaviour, injected as JS since plotly.js
+      # has no built-in "highlight hovered choropleth region" option:
+      #   - plotly_hover:   thicken + blacken the border of the hovered
+      #                     country on the main trace (trace 0)
+      #   - plotly_unhover: reset the main trace border to baseline, and
+      #                     stop/reset any pulsing on the selection trace
+      #   - if the hovered country IS the selected country (trace 1, when
+      #     present), also pulse its dashed outline via Plotly.restyle
+      #     (width/dash alternation) rather than a fragile stroke-dashoffset
+      #     animation
+      n_points <- nrow(data)
+      has_selection_trace <- !is.null(selected_iso)
+
+      js <- sprintf(
+        "
+        function(el) {
+          var n = %d;
+          var selIdx = %d;
+          var hasSel = %s;
+          var baseWidth = %f, baseColor = '%s';
+          var hoverWidth = 4, hoverColor = 'black';
+          var pulseTimer = null;
+
+          function resetMain() {
+            var widths = new Array(n).fill(baseWidth);
+            var colors = new Array(n).fill(baseColor);
+            Plotly.restyle(el, {'marker.line.width': [widths], 'marker.line.color': [colors]}, [0]);
+          }
+
+          function stopPulse() {
+            if (pulseTimer) { clearInterval(pulseTimer); pulseTimer = null; }
+            if (hasSel) {
+              Plotly.restyle(el, {'marker.line.width': [[3]], 'marker.line.dash': [['dash']]}, [1]);
+            }
+          }
+
+          el.on('plotly_hover', function(d) {
+            var pt = d.points[0];
+            if (pt.curveNumber !== 0) return;
+            var idx = pt.pointNumber;
+
+            var widths = new Array(n).fill(baseWidth);
+            var colors = new Array(n).fill(baseColor);
+            widths[idx] = hoverWidth;
+            colors[idx] = hoverColor;
+            Plotly.restyle(el, {'marker.line.width': [widths], 'marker.line.color': [colors]}, [0]);
+
+            if (hasSel && idx === selIdx) {
+              var toggle = false;
+              pulseTimer = setInterval(function() {
+                toggle = !toggle;
+                Plotly.restyle(el, {
+                  'marker.line.width': [[toggle ? 5 : 2]],
+                  'marker.line.dash': [[toggle ? 'dot' : 'dash']]
+                }, [1]);
+              }, 450);
+            }
+          });
+
+          el.on('plotly_unhover', function(d) {
+            resetMain();
+            stopPulse();
+          });
+        }
+        ",
+        n_points,
+        selected_idx,
+        if (has_selection_trace) "true" else "false",
+        base_border_width,
+        base_border_color
+      )
+
+      p |> htmlwidgets::onRender(js)
     })
   })
 }

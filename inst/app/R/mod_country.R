@@ -7,7 +7,7 @@ countrySidebarUI <- function(id, rwb) {
         shiny::selectInput(
             ns("country"),
             label = "Select country",
-            choices = c("Select a country..." = "", sort(unique(as.character(rwb$country_en)))),
+            choices = c("Select a country..." = "", sort(unique(rwb$country_en))),
             selected = ""
         ),
         shiny::actionButton(

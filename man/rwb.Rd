@@ -8,8 +8,8 @@
 A tibble with 4,020 rows and 20 variables:
 \describe{
 \item{year_n}{Integer year of the index edition.}
-\item{iso}{ISO 3166-1 alpha-3 country code (factor).}
-\item{country_en}{Country name in English (factor).}
+\item{iso}{ISO 3166-1 alpha-3 country code (character).}
+\item{country_en}{Country name in English (character).}
 \item{score}{Overall press freedom score (0–100; higher = more free).}
 \item{rank}{Overall rank for the given year (1 = most free).}
 \item{political_context}{Score for the political context indicator (0–100).}

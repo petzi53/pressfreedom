@@ -102,8 +102,7 @@ chartServer <- function(id, rwb, var, country) {
                 country_order <- data() |>
                     dplyr::filter(year_n == max_year) |>
                     dplyr::arrange(dplyr::desc(.data[[var()]])) |>
-                    dplyr::pull(country_en) |>
-                    as.character()
+                    dplyr::pull(country_en)
 
                 df_ordered <- data() |>
                     dplyr::mutate(

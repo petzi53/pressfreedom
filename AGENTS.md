@@ -62,6 +62,10 @@ These zones appear **only in 2022** and do not align with the historical classif
 
 **Resolution**: Applied in `data-raw/rwb.R` — 2022 zone assignments are automatically corrected during package build to match historical classifications. This preserves all 180 countries in 2022 while ensuring zone homogeneity across the entire time series.
 
+**Factor Coercion Bug** — The upstream `rwb-book` pipeline sometimes encodes `country_en`, `zone`, and `iso` as factors. This previously caused subtle bugs downstream (e.g. mismatched `case_when()`/`%in%` comparisons against character values from Shiny inputs, and a factor value flowing unconverted into `plotly::plot_geo(locations = ...)`).
+
+**Resolution**: Applied in `data-raw/rwb.R` — `country_en`, `zone`, and `iso` are explicitly coerced with `as.character()` right after loading the raw data, before any other transformation. All three columns are documented as `character` (not `factor`) in `R/data.R`. Downstream Shiny modules (`mod_inputs.R`, `mod_country.R`, `mod_chart.R`, `mod_map.R`) rely on this guarantee and no longer defensively re-coerce these columns themselves — if you add new code that reads `rwb$country_en`, `rwb$zone`, or `rwb$iso`, you should not need `as.character()` around it.
+
 ## Shiny App Architecture
 
 The app uses a fully modular design (`inst/app/`):

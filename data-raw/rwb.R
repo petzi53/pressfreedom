@@ -24,6 +24,16 @@ rwb_book_path <- here::here(
 
 rwb <- readRDS(rwb_book_path)
 
+# Ensure these are plain character vectors, not factors. Factor levels from
+# the source data have previously caused coercion bugs downstream (e.g. in
+# case_when() comparisons and Shiny select inputs).
+rwb <- rwb |>
+  dplyr::mutate(
+    country_en = as.character(country_en),
+    zone = as.character(zone),
+    iso = as.character(iso)
+  )
+
 # 2022 ZONE CORRECTION: In 2022, RWB used non-standard zone classifications
 # ("Europe - Asie centrale" and "Maghreb - Moyen-Orient"). These appear only in 2022
 # and do not align with historical classifications used in all other years.

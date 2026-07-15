@@ -23,7 +23,7 @@ inputsUI <- function(id, rwb) {
         shiny::selectInput(
             inputId = ns("country"),
             label = "Countries",
-            choices = c("Select countries..." = "", sort(unique(as.character(rwb$country_en)))),
+            choices = c("Select countries..." = "", sort(unique(rwb$country_en))),
             selected = character(0),
             multiple = TRUE
         ),
