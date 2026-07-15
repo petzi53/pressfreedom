@@ -9,3 +9,4 @@
 ^contexts$
 ^conversation-export.*\.md$
 ^\.posit/assistant$
+^notes$
