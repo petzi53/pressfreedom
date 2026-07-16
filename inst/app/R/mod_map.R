@@ -306,7 +306,11 @@ mapServer <- function(id, rwb, reset = NULL) {
       )
       data$hovertext <- hovertext
 
-      p <- plotly::plot_geo()
+      # plotly keys shiny click events on the plot's own `source`
+      # attribute (defaults to "A"), not the plotlyOutput's DOM id —
+      # must match the `source` used in event_data() below or clicks
+      # are silently never delivered (and Shiny warns about it).
+      p <- plotly::plot_geo(source = ns("map"))
       for (lvl in levels_) {
         sub <- data[data$band == lvl, , drop = FALSE]
         if (nrow(sub) == 0) next
