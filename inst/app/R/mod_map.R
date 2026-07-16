@@ -80,6 +80,25 @@ mapServer <- function(id, rwb, reset = NULL) {
         shiny::updateSelectInput(session, "zone",   selected = "World")
         shiny::updateRadioButtons(session, "metric", selected = "score")
         shiny::updateSelectInput(session, "selected_country", selected = "")
+
+        # Reset pan/zoom directly: updateSelectInput()/updateRadioButtons()
+        # above are no-ops (and don't retrigger output$map) when the widgets
+        # already hold their default values, so the map's zoom/pan state
+        # would otherwise survive a reset. Zooming mutates geo.projection.scale
+        # and geo.center.*; panning on this (Robinson) projection mutates
+        # geo.projection.rotation.* instead, so both must be reset.
+        plotly::plotlyProxy("map", session) |>
+          plotly::plotlyProxyInvoke(
+            "relayout",
+            list(
+              "geo.projection.scale" = 1,
+              "geo.center.lon" = 0,
+              "geo.center.lat" = 0,
+              "geo.projection.rotation.lon" = 0,
+              "geo.projection.rotation.lat" = 0,
+              "geo.projection.rotation.roll" = 0
+            )
+          )
       }, ignoreInit = TRUE)
     }
 
