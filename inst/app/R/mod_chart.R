@@ -40,10 +40,10 @@ chart_trace_countries <- function(p) {
     }, character(1))
 }
 
-chartUI <- function(id) {
+chartUI <- function(id, height = "calc(100vh - 105px)") {
     ns <- shiny::NS(id)
     bslib::card(
-        height = "calc(100vh - 105px)",
+        height = height,
         bslib::card_header(shiny::textOutput(ns("title"))),
         shiny::div(
             style = "position: relative; height: 100%;",
@@ -53,7 +53,12 @@ chartUI <- function(id) {
     )
 }
 
-chartServer <- function(id, rwb, var, country) {
+# `show_nav` controls whether the click popover's "Go to Country view"
+# button is rendered. The Country view (mod_country.R) embeds this same
+# component in compact mode for its own country, where jumping to
+# "Country view" would just reload the page already being viewed — so it
+# passes `show_nav = FALSE` and ignores the returned reactive entirely.
+chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
@@ -78,10 +83,20 @@ chartServer <- function(id, rwb, var, country) {
         })
 
         output$plot_or_placeholder <- shiny::renderUI({
-            if (length(country()) == 0) {
+            msg <- if (length(country()) == 0) {
+                "Select one or more countries to display the chart."
+            } else if (nrow(data()) == 0) {
+                # Some entities (e.g. defunct historical states) have rank
+                # but no score data, or vice versa; df_chart()'s na.omit()
+                # drops such rows entirely, and max(data()$year_n) inside
+                # renderPlotly below would otherwise warn/return -Inf on
+                # the resulting empty data frame.
+                "No data available for the selected country/countries and metric."
+            }
+            if (!is.null(msg)) {
                 shiny::div(
                     style = "display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;",
-                    shiny::p("Select one or more countries to display the chart.")
+                    shiny::p(msg)
                 )
             } else {
                 plotly::plotlyOutput(ns("plot"), height = "100%")
@@ -89,7 +104,16 @@ chartServer <- function(id, rwb, var, country) {
         })
 
         output$plot <- plotly::renderPlotly({
-            shiny::req(length(country()) > 0, data())
+            # nrow(data()) > 0 matters, not just data() being non-NULL:
+            # df_chart()'s na.omit() can leave a 0-row tibble for a
+            # country with no non-NA values for this metric (e.g. a
+            # defunct historical state with rank but no score), and
+            # max(data()$year_n) below would warn/return -Inf on that.
+            # This render function still runs even when
+            # plot_or_placeholder (above) is showing a message instead of
+            # plotlyOutput, since Shiny doesn't know to suspend it without
+            # a live browser reporting visibility.
+            shiny::req(length(country()) > 0, nrow(data()) > 0)
             click_info(NULL) # new chart -> any open popover no longer applies
 
             # Subset palette to the number of selected countries
@@ -276,10 +300,12 @@ chartServer <- function(id, rwb, var, country) {
                     style = "font-size: 0.9rem; margin-top: 4px;",
                     paste0(info$year, " \u00b7 ", metric_label, ": ", value_display)
                 ),
-                shiny::actionButton(
-                    ns("go_to_country"), "Go to Country view \u2192",
-                    class = "btn-sm btn-outline-primary w-100 mt-2"
-                )
+                if (show_nav) {
+                    shiny::actionButton(
+                        ns("go_to_country"), "Go to Country view \u2192",
+                        class = "btn-sm btn-outline-primary w-100 mt-2"
+                    )
+                }
             )
         })
 
