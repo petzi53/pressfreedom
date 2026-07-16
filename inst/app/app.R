@@ -35,17 +35,17 @@ ui <- bslib::page_sidebar(
         width = 260,
         bslib::navset_pill(
             id = "view",
-            bslib::nav_panel("World Map",        mapSidebarUI("map", rwb)),
-            bslib::nav_panel("Compare Countries", compareSidebarUI("inputs", rwb)),
-            bslib::nav_panel("Country Details",  countrySidebarUI("country", rwb))
+            bslib::nav_panel("Map",    mapSidebarUI("map", rwb)),
+            bslib::nav_panel("Trends", compareSidebarUI("inputs", rwb)),
+            bslib::nav_panel("Country", countrySidebarUI("country", rwb))
         )
     ),
     bslib::navset_hidden(
         id = "main_view",
-        selected = "World Map",
-        bslib::nav_panel("World Map",         mapMainUI("map")),
-        bslib::nav_panel("Compare Countries", compareMainUI("chart")),
-        bslib::nav_panel("Country Details",   countryMainUI("country"))
+        selected = "Map",
+        bslib::nav_panel("Map",    mapMainUI("map")),
+        bslib::nav_panel("Trends", compareMainUI("chart")),
+        bslib::nav_panel("Country", countryMainUI("country"))
     ),
     shiny::tags$style("
         /* Dashboard should never scroll — fixes the scrollbar issue */
@@ -75,25 +75,28 @@ server <- function(input, output, session) {
         bslib::nav_select("main_view", input$view)
     })
 
-    # Title click: navigate to World Map and signal the map module to reset
+    # Title click: navigate to Map and signal the map module to reset
     reset_trigger <- shiny::reactiveVal(0)
     shiny::observeEvent(input$reset_app, {
-        bslib::nav_select("view", "World Map")
-        bslib::nav_select("main_view", "World Map")
+        bslib::nav_select("view", "Map")
+        bslib::nav_select("main_view", "Map")
         reset_trigger(reset_trigger() + 1)
     })
 
+    # Shared "selected country" reactive: both the Map's click-to-navigate
+    # (mapServer()'s returned reactive) and Trends' click-to-inspect
+    # popover (chartServer()'s returned reactive) feed into this single
+    # reactiveVal. One observer downstream does the actual navigation +
+    # selection, so that logic exists in exactly one place regardless of
+    # which view triggered it.
+    selected_country <- shiny::reactiveVal(NULL)
+
     # mapServer() returns a reactive holding the most recently clicked
-    # country (or NULL). Minimal navigation wiring for now — clicking a
-    # country jumps to Country Details and preselects it there. Step 5
-    # formalizes this into a shared "selected country" reactive that also
-    # reacts to clicks from the Trends view.
+    # country (or NULL).
     map_click <- mapServer("map", rwb, reset = reset_trigger)
     shiny::observeEvent(map_click(), {
         shiny::req(map_click())
-        bslib::nav_select("view", "Country Details")
-        bslib::nav_select("main_view", "Country Details")
-        shiny::updateSelectInput(session, "country-country", selected = map_click())
+        selected_country(map_click())
     })
 
     # Inputs module returns list(var, country) as reactives
@@ -101,15 +104,21 @@ server <- function(input, output, session) {
 
     # Chart module receives those reactives and the raw data, and returns
     # a reactive holding the country confirmed via its click popover's
-    # "Go to Country view" button (or NULL). Same minimal wiring pattern
-    # as map_click above; step 5 consolidates both into one shared
-    # "selected country" reactive.
+    # "Go to Country view" button (or NULL).
     chart_click <- chartServer("chart", rwb, sel$var, sel$country)
     shiny::observeEvent(chart_click(), {
         shiny::req(chart_click())
-        bslib::nav_select("view", "Country Details")
-        bslib::nav_select("main_view", "Country Details")
-        shiny::updateSelectInput(session, "country-country", selected = chart_click())
+        selected_country(chart_click())
+    })
+
+    # The one place a click from either view actually navigates: switch
+    # both the sidebar pill and the hidden content pane to Country, and
+    # preselect the clicked country there.
+    shiny::observeEvent(selected_country(), {
+        shiny::req(selected_country())
+        bslib::nav_select("view", "Country")
+        bslib::nav_select("main_view", "Country")
+        shiny::updateSelectInput(session, "country-country", selected = selected_country())
     })
 
     countryServer("country", rwb)
