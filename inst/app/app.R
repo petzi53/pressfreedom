@@ -99,8 +99,18 @@ server <- function(input, output, session) {
     # Inputs module returns list(var, country) as reactives
     sel <- inputsServer("inputs")
 
-    # Chart module receives those reactives and the raw data
-    chartServer("chart", rwb, sel$var, sel$country)
+    # Chart module receives those reactives and the raw data, and returns
+    # a reactive holding the country confirmed via its click popover's
+    # "Go to Country view" button (or NULL). Same minimal wiring pattern
+    # as map_click above; step 5 consolidates both into one shared
+    # "selected country" reactive.
+    chart_click <- chartServer("chart", rwb, sel$var, sel$country)
+    shiny::observeEvent(chart_click(), {
+        shiny::req(chart_click())
+        bslib::nav_select("view", "Country Details")
+        bslib::nav_select("main_view", "Country Details")
+        shiny::updateSelectInput(session, "country-country", selected = chart_click())
+    })
 
     countryServer("country", rwb)
 }
