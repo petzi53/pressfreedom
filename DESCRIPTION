@@ -18,7 +18,9 @@ Imports:
     shiny
 Suggests:
     bslib,
+    countrycode,
     dplyr,
+    flagon,
     ggbump,
     ggplot2,
     htmlwidgets,
@@ -26,6 +28,7 @@ Suggests:
     RColorBrewer,
     stringr
 Remotes:
+    coolbutuseless/flagon,
     davidsjoberg/ggbump
 LazyData: true
 URL: https://github.com/petzi53/pressfreedom

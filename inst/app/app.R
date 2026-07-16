@@ -18,6 +18,11 @@ invisible(lapply(list.files("R", full.names = TRUE, pattern = "\\.R$"), source))
 # Use the dataset bundled with the package
 rwb <- pressfreedom::rwb
 
+# flagon installs flag images on disk rather than as package data; serve
+# them under /flags so <img src="flags/xx.png"> works anywhere in the app
+# (see R/flags.R for the iso3 -> flagon-code mapping).
+shiny::addResourcePath("flags", system.file("png", package = "flagon"))
+
 ##############################################################
 ui <- bslib::page_sidebar(
     title = shiny::actionLink(
@@ -38,7 +43,7 @@ ui <- bslib::page_sidebar(
     bslib::navset_hidden(
         id = "main_view",
         selected = "World Map",
-        bslib::nav_panel("World Map",         mapMainUI("map", rwb)),
+        bslib::nav_panel("World Map",         mapMainUI("map")),
         bslib::nav_panel("Compare Countries", compareMainUI("chart")),
         bslib::nav_panel("Country Details",   countryMainUI("country"))
     ),
@@ -78,7 +83,18 @@ server <- function(input, output, session) {
         reset_trigger(reset_trigger() + 1)
     })
 
-    mapServer("map", rwb, reset = reset_trigger)
+    # mapServer() returns a reactive holding the most recently clicked
+    # country (or NULL). Minimal navigation wiring for now — clicking a
+    # country jumps to Country Details and preselects it there. Step 5
+    # formalizes this into a shared "selected country" reactive that also
+    # reacts to clicks from the Trends view.
+    map_click <- mapServer("map", rwb, reset = reset_trigger)
+    shiny::observeEvent(map_click(), {
+        shiny::req(map_click())
+        bslib::nav_select("view", "Country Details")
+        bslib::nav_select("main_view", "Country Details")
+        shiny::updateSelectInput(session, "country-country", selected = map_click())
+    })
 
     # Inputs module returns list(var, country) as reactives
     sel <- inputsServer("inputs")
