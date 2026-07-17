@@ -1,24 +1,26 @@
 ## inst/app/R/mod_country.R
-## Country profile module (redesigned per decision #4 and the
-## Explanatory-factors resolution in the WHR-redesign plan).
+## Country profile module (redesigned per
+## .posit/assistant/plans/2026-07-16-1923-country-page-redesign.md).
 ##
 ## countrySidebarUI() — country selector + clear button (unchanged)
-## countryMainUI()    — flag/name header, rank + score stat blocks, a
-##                       compact embedded Trends chart, and a small
-##                       2022-2025 Explanatory Factors chart
-## countryServer()     — computes the stat blocks and factors chart;
+## countryMainUI()    — flag/name header; an overview card (horizontal
+##                       Rank/Score stat table + score-band/rank-tier
+##                       count bar charts); a compact embedded Trends
+##                       chart; and a small 2022-2025 Explanatory
+##                       Factors chart
+## countryServer()     — computes the stat table and factors chart;
 ##                        embeds chartServer() (mod_chart.R) in compact
 ##                        mode for the long-run Score view
 ##
-## Rank block: current / highest / lowest / median / biggest climb /
-## biggest fall. "Highest"/"Lowest" refer to ranking quality, not raw
-## magnitude, so lower numeric rank is "Highest". Score block uses the
-## same six-row shape but with the literal numeric max/min for
-## "Highest"/"Lowest" and mean (not median) for the central tendency,
-## since rank is ordinal and score is a continuous composite (decision
-## #4). Both use `rank_evolution`/`score_evolution` for the climb/fall
-## rows; both are signed with positive = improved (see R/data.R), so
-## "biggest climb"/"biggest gain" is simply the max, no sign-flipping.
+## Stat table: one row per metric (Rank, Score), columns = Current /
+## Best / Worst / Median-or-Mean / Biggest improvement / Biggest
+## decline. "Best"/"Worst" mean ranking quality for Rank (lower is
+## better) and literal numeric max/min for Score (higher is better).
+## Median is used for Rank (ordinal), mean for Score (continuous
+## composite) — see decision #4. Both use `rank_evolution`/
+## `score_evolution` for the improvement/decline columns; both are
+## signed with positive = improved (see R/data.R), so "biggest
+## improvement" is simply the max, no sign-flipping.
 
 # Format a stat value: whole numbers show no decimals, fractional ones
 # (e.g. a rank median, or any score) show one. `sign = TRUE` prefixes a
@@ -31,19 +33,62 @@ fmt_val <- function(x, sign = FALSE) {
   s
 }
 
-# One label/value(/year) row for a stat block.
-stat_row <- function(label, value, year = NULL, sign = FALSE) {
-  shiny::div(
-    style = paste(
-      "display: flex; justify-content: space-between; align-items: baseline;",
-      "padding: 4px 0; border-bottom: 1px solid #f1f1f1; font-size: 0.92rem;"
+# One <td> cell: a formatted stat value plus an optional small "(year)"
+# annotation, matching the old stat_row()'s value styling but laid out
+# horizontally in a table instead of stacked rows.
+stat_cell <- function(value, year = NULL, sign = FALSE) {
+  shiny::tags$td(
+    shiny::strong(fmt_val(value, sign = sign)),
+    if (!is.null(year) && !is.na(year)) {
+      shiny::span(paste0(" (", year, ")"), style = "color: #adb5bd; font-size: 0.78em;")
+    }
+  )
+}
+
+# Combined Rank/Score stat table: one row per metric, columns = Current /
+# Best / Worst / Median-or-Mean / Biggest improvement / Biggest decline.
+# `rank_st`/`score_st` are `country_block_stats()` lists, or NULL if that
+# metric has no data at all for this country (e.g. a defunct historical
+# state with rank-only history) — in which case the row falls back to an
+# all-NA stats list so every cell renders as "\u2013" rather than erroring.
+stat_table <- function(rank_st, score_st, rank_central, score_central) {
+  empty_st <- list(
+    current = NA, current_year = NA, best = NA, best_year = NA,
+    worst = NA, worst_year = NA, climb = NA, climb_year = NA,
+    fall = NA, fall_year = NA
+  )
+  if (is.null(rank_st))  rank_st  <- empty_st
+  if (is.null(score_st)) score_st <- empty_st
+
+  stat_row_tr <- function(label, st, central) {
+    shiny::tags$tr(
+      shiny::tags$td(shiny::strong(label)),
+      stat_cell(st$current, st$current_year),
+      stat_cell(st$best, st$best_year),
+      stat_cell(st$worst, st$worst_year),
+      stat_cell(central),
+      stat_cell(st$climb, st$climb_year, sign = TRUE),
+      stat_cell(st$fall, st$fall_year, sign = TRUE)
+    )
+  }
+
+  shiny::tags$table(
+    class = "table table-sm mb-1",
+    style = "font-size: 0.78rem; width: 100%;",
+    shiny::tags$thead(
+      shiny::tags$tr(
+        shiny::tags$th(""),
+        shiny::tags$th("Current"),
+        shiny::tags$th("Best"),
+        shiny::tags$th("Worst"),
+        shiny::tags$th("Median/Mean"),
+        shiny::tags$th("Biggest improvement"),
+        shiny::tags$th("Biggest decline")
+      )
     ),
-    shiny::span(label, style = "color: #6c757d;"),
-    shiny::span(
-      shiny::strong(fmt_val(value, sign = sign)),
-      if (!is.null(year) && !is.na(year)) {
-        shiny::span(paste0(" (", year, ")"), style = "color: #adb5bd; font-size: 0.82rem;")
-      }
+    shiny::tags$tbody(
+      stat_row_tr("Rank", rank_st, rank_central),
+      stat_row_tr("Score", score_st, score_central)
     )
   )
 }
@@ -162,24 +207,37 @@ countryServer <- function(id, rwb) {
                     "height: calc(100vh - 155px); display: flex;",
                     "flex-direction: column; gap: 12px;"
                 ),
+                # Overview row: stat table (left ~50%) + two band/tier count
+                # bar chart placeholders (right ~50%, split ~25/25) — bar
+                # charts wired up in a follow-up step.
+                shiny::div(
+                    style = "flex: 0 0 auto; min-height: 0;",
+                    bslib::card(
+                        bslib::card_header("Overview"),
+                        shiny::div(
+                            style = "display: flex; gap: 12px; align-items: flex-start;",
+                            shiny::div(
+                                style = "flex: 1 1 50%; min-width: 0;",
+                                shiny::uiOutput(ns("stat_table")),
+                                shiny::p(
+                                    "* Median for Rank (ordinal); mean for Score (continuous).",
+                                    class = "text-muted",
+                                    style = "font-size: 0.72rem; margin: 0;"
+                                )
+                            ),
+                            shiny::div(
+                                style = "flex: 1 1 25%; min-width: 0; min-height: 140px;",
+                                no_data_msg("Score bands chart (next step).")
+                            ),
+                            shiny::div(
+                                style = "flex: 1 1 25%; min-width: 0; min-height: 140px;",
+                                no_data_msg("Rank tiers chart (next step).")
+                            )
+                        )
+                    )
+                ),
                 shiny::div(
                     style = "flex: 3 1 0; min-height: 0; display: flex; gap: 12px;",
-                    shiny::div(
-                        style = paste(
-                            "flex: 0 0 320px; min-height: 0; display: flex;",
-                            "flex-direction: column; gap: 12px;"
-                        ),
-                        bslib::card(
-                            style = "flex: 1;",
-                            bslib::card_header("Rank"),
-                            shiny::uiOutput(ns("rank_stats"))
-                        ),
-                        bslib::card(
-                            style = "flex: 1;",
-                            bslib::card_header("Score"),
-                            shiny::uiOutput(ns("score_stats"))
-                        )
-                    ),
                     shiny::div(
                         style = "flex: 1; min-height: 0;",
                         chartUI(ns("trend"), height = "100%")
@@ -196,48 +254,38 @@ countryServer <- function(id, rwb) {
             )
         })
 
-        output$rank_stats <- shiny::renderUI({
+        output$stat_table <- shiny::renderUI({
             d <- country_data()
             rd <- d |> dplyr::filter(!is.na(rank))
-            if (nrow(rd) == 0) return(no_data_msg("No rank data available."))
-
-            st <- country_block_stats(d, "rank", "rank_evolution", direction = "lower_better")
-            shiny::tagList(
-                stat_row("Current", st$current, st$current_year),
-                stat_row("Highest", st$best, st$best_year),
-                stat_row("Lowest", st$worst, st$worst_year),
-                stat_row("Median", stats::median(rd$rank, na.rm = TRUE)),
-                stat_row("Biggest climb", st$climb, st$climb_year, sign = TRUE),
-                stat_row("Biggest fall", st$fall, st$fall_year, sign = TRUE)
-            )
-        })
-
-        output$score_stats <- shiny::renderUI({
-            d <- country_data()
             scored_rows <- d |> dplyr::filter(!is.na(score))
-            if (nrow(scored_rows) == 0) return(no_data_msg("No score data available."))
+
+            rank_st <- if (nrow(rd) > 0) {
+                country_block_stats(d, "rank", "rank_evolution", direction = "lower_better")
+            } else {
+                NULL
+            }
+            rank_central <- if (nrow(rd) > 0) stats::median(rd$rank, na.rm = TRUE) else NA_real_
 
             # RSF changed its scoring methodology in 2013, so score_evolution
             # (score - score_n_1) compares two incompatible scales for that
             # one year, producing artifacts as large as +5,763 across the
             # dataset that aren't real year-over-year changes. rank_evolution
             # is unaffected (rank is a same-year relative ordering both
-            # years). Excluded here, scoped to this stat block only.
+            # years). Excluded here, scoped to this stat table only.
             d_evol <- d |>
                 dplyr::mutate(
                     score_evolution = dplyr::if_else(
                         year_n == 2013, NA_real_, score_evolution
                     )
                 )
-            st <- country_block_stats(d_evol, "score", "score_evolution", direction = "higher_better")
-            shiny::tagList(
-                stat_row("Current", st$current, st$current_year),
-                stat_row("Highest", st$best, st$best_year),
-                stat_row("Lowest", st$worst, st$worst_year),
-                stat_row("Mean", mean(scored_rows$score, na.rm = TRUE)),
-                stat_row("Biggest gain", st$climb, st$climb_year, sign = TRUE),
-                stat_row("Biggest drop", st$fall, st$fall_year, sign = TRUE)
-            )
+            score_st <- if (nrow(scored_rows) > 0) {
+                country_block_stats(d_evol, "score", "score_evolution", direction = "higher_better")
+            } else {
+                NULL
+            }
+            score_central <- if (nrow(scored_rows) > 0) mean(scored_rows$score, na.rm = TRUE) else NA_real_
+
+            stat_table(rank_st, score_st, rank_central, score_central)
         })
 
         # Compact embedded Trends chart (mod_chart.R), fixed to Score and
