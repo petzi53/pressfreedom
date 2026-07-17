@@ -81,14 +81,14 @@ stat_table <- function(rank_st, score_st, rank_central, score_central) {
         shiny::tags$th("Current"),
         shiny::tags$th("Best"),
         shiny::tags$th("Worst"),
-        shiny::tags$th("Median/Mean"),
-        shiny::tags$th("Biggest improvement"),
-        shiny::tags$th("Biggest decline")
+        shiny::tags$th(shiny::HTML("Mean/<br>Median<sup>*</sup>")),
+        shiny::tags$th(shiny::HTML("Biggest<br>advance")),
+        shiny::tags$th(shiny::HTML("Biggest<br>decline"))
       )
     ),
     shiny::tags$tbody(
-      stat_row_tr("Rank", rank_st, rank_central),
-      stat_row_tr("Score", score_st, score_central)
+      stat_row_tr("Score", score_st, score_central),
+      stat_row_tr("Rank", rank_st, rank_central)
     )
   )
 }
