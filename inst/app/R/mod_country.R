@@ -220,7 +220,7 @@ countryServer <- function(id, rwb) {
                                 style = "flex: 1 1 50%; min-width: 0;",
                                 shiny::uiOutput(ns("stat_table")),
                                 shiny::p(
-                                    "* Median for Rank (ordinal); mean for Score (continuous).",
+                                    "* Mean for Score (continuous); Median for Rank (ordinal).",
                                     class = "text-muted",
                                     style = "font-size: 0.72rem; margin: 0;"
                                 )
