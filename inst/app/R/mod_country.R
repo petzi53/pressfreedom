@@ -5,12 +5,15 @@
 ## countrySidebarUI() — country selector + clear button (unchanged)
 ## countryMainUI()    — flag/name header; an overview card (horizontal
 ##                       Rank/Score stat table + score-band/rank-tier
-##                       count bar charts); a compact embedded Trends
-##                       chart; and a small 2022-2025 Explanatory
-##                       Factors chart
-## countryServer()     — computes the stat table and factors chart;
-##                        embeds chartServer() (mod_chart.R) in compact
-##                        mode for the long-run Score view
+##                       count bar charts); and a trend row with two
+##                       combined charts — Score (+ dimensions) and
+##                       Rank (+ dimension ranks) — sharing one
+##                       deduplicated floating legend
+## countryServer()     — computes the stat table, the band/tier bar
+##                        charts, and the two combined trend charts
+##                        (bespoke plot_ly()/ggbump code, not a reuse
+##                        of chartServer() — see mod_country.R's trend
+##                        section and AGENTS.md for why)
 ##
 ## Stat table: one row per metric (Rank, Score), columns = Current /
 ## Best / Worst / Median-or-Mean / Biggest improvement / Biggest
@@ -208,47 +211,55 @@ countryServer <- function(id, rwb) {
                     "flex-direction: column; gap: 12px;"
                 ),
                 # Overview row: stat table (left ~50%) + two band/tier count
-                # bar chart placeholders (right ~50%, split ~25/25) — bar
-                # charts wired up in a follow-up step.
+                # bar charts (right ~50%, split ~25/25), squeezed to line up
+                # with the table's footnote row (~1/3 of the earlier height).
                 shiny::div(
                     style = "flex: 0 0 auto; min-height: 0;",
                     bslib::card(
                         bslib::card_header("Overview"),
-                        shiny::div(
-                            style = "display: flex; gap: 12px; align-items: flex-start;",
+                        # fillable = FALSE: keeps this section in normal
+                        # block flow rather than bslib's flexbox "fill"
+                        # layout. Not what actually fixes the bar charts'
+                        # height (see band_bar_chart() below for that) —
+                        # kept because this content is naturally
+                        # content-sized (a table + two small charts), not
+                        # meant to stretch/shrink with the card.
+                        bslib::card_body(
+                            fillable = FALSE,
+                            padding = c("0.75rem", "1rem", "0.25rem", "1rem"),
                             shiny::div(
-                                style = "flex: 1 1 50%; min-width: 0;",
-                                shiny::uiOutput(ns("stat_table")),
-                                shiny::p(
-                                    "* Mean for Score (continuous); Median for Rank (ordinal).",
-                                    class = "text-muted",
-                                    style = "font-size: 0.72rem; margin: 0;"
+                                style = "display: flex; gap: 12px; align-items: flex-start;",
+                                shiny::div(
+                                    style = "flex: 1 1 50%; min-width: 0;",
+                                    shiny::uiOutput(ns("stat_table")),
+                                    shiny::p(
+                                        "* Mean for Score (continuous); Median for Rank (ordinal).",
+                                        class = "text-muted",
+                                        style = "font-size: 0.72rem; margin: 0;"
+                                    )
+                                ),
+                                shiny::div(
+                                    style = "flex: 1 1 25%; min-width: 0; height: 200px;",
+                                    shiny::uiOutput(ns("score_band_plot_or_placeholder"))
+                                ),
+                                shiny::div(
+                                    style = "flex: 1 1 25%; min-width: 0; height: 200px;",
+                                    shiny::uiOutput(ns("rank_tier_plot_or_placeholder"))
                                 )
-                            ),
-                            shiny::div(
-                                style = "flex: 1 1 25%; min-width: 0; min-height: 140px;",
-                                no_data_msg("Score bands chart (next step).")
-                            ),
-                            shiny::div(
-                                style = "flex: 1 1 25%; min-width: 0; min-height: 140px;",
-                                no_data_msg("Rank tiers chart (next step).")
                             )
                         )
                     )
                 ),
+                # Trend row: one card holding the combined Score(+dimensions)
+                # / Rank(+dimension ranks) charts, merged via plotly::subplot()
+                # with a single deduplicated floating legend (see
+                # trend_plot_or_placeholder / trend_plot below).
                 shiny::div(
-                    style = "flex: 3 1 0; min-height: 0; display: flex; gap: 12px;",
-                    shiny::div(
-                        style = "flex: 1; min-height: 0;",
-                        chartUI(ns("trend"), height = "100%")
-                    )
-                ),
-                shiny::div(
-                    style = "flex: 2 1 0; min-height: 0;",
+                    style = "flex: 1 1 0; min-height: 0;",
                     bslib::card(
                         height = "100%",
-                        bslib::card_header("Explanatory factors, 2022\u20132025"),
-                        shiny::uiOutput(ns("factors_plot_or_placeholder"))
+                        bslib::card_header("Score & Rank trends (with explanatory factors, 2022\u20132025)"),
+                        shiny::uiOutput(ns("trend_plot_or_placeholder"))
                     )
                 )
             )
@@ -288,66 +299,374 @@ countryServer <- function(id, rwb) {
             stat_table(rank_st, score_st, rank_central, score_central)
         })
 
-        # Compact embedded Trends chart (mod_chart.R), fixed to Score and
-        # this one country — literally the same component used for
-        # multi-country comparison, just reused with a single country
-        # and a smaller height. `show_nav = FALSE` hides the popover's
-        # "Go to Country view" button, which would be a no-op here.
-        chartServer(
-            "trend", rwb,
-            var     = shiny::reactive("score"),
-            country = shiny::reactive(if (is.null(selected()) || selected() == "") character(0) else selected()),
-            show_nav = FALSE
-        )
-
-        # Explanatory Factors: one line per dimension, 2022-2025 only —
-        # a distinct component from the Trends chart (its own short
-        # x-axis, single country), not a reuse of it. See AGENTS.md /
-        # the redesign plan for why dimensions are scoped this way
-        # rather than sharing the 2002-2025 axis.
-        factors_data <- shiny::reactive({
-            d <- country_data() |> dplyr::filter(year_n >= 2022)
-            dplyr::bind_rows(lapply(map_dimension_vars, function(v) {
-                d |>
-                    dplyr::transmute(
-                        year_n,
-                        dimension = map_metric_labels[[v]],
-                        value = .data[[v]]
-                    )
-            })) |>
-                dplyr::filter(!is.na(value))
+        # Score band counts: every year with a non-NA score (2013+),
+        # classified via rsf_band() (from mod_map.R, best-\u2192worst order).
+        score_band_data <- shiny::reactive({
+            d <- country_data() |> dplyr::filter(!is.na(score))
+            counts <- d |>
+                dplyr::mutate(band = factor(rsf_band(score), levels = rsf_band_levels)) |>
+                dplyr::count(band, .drop = FALSE)
+            dplyr::tibble(band = factor(rsf_band_levels, levels = rsf_band_levels)) |>
+                dplyr::left_join(counts, by = "band") |>
+                dplyr::mutate(n = dplyr::coalesce(n, 0L))
         })
 
-        output$factors_plot_or_placeholder <- shiny::renderUI({
-            if (nrow(factors_data()) == 0) {
-                return(no_data_msg("No explanatory factor data available (2022\u20132025)."))
-            }
-            plotly::plotlyOutput(ns("factors_plot"), height = "100%")
+        # Rank tier counts: every year with a non-NA rank, classified via
+        # rank_tier() using that year's own max_rank (total countries
+        # surveyed varies by year, so tiers aren't comparable against a
+        # single global max).
+        rank_tier_data <- shiny::reactive({
+            d <- country_data() |> dplyr::filter(!is.na(rank))
+            max_ranks <- rwb |>
+                dplyr::group_by(year_n) |>
+                dplyr::summarise(max_rank = max(rank, na.rm = TRUE), .groups = "drop")
+            counts <- d |>
+                dplyr::left_join(max_ranks, by = "year_n") |>
+                dplyr::mutate(tier = factor(rank_tier(rank, max_rank), levels = rank_tier_levels)) |>
+                dplyr::count(tier, .drop = FALSE)
+            dplyr::tibble(tier = factor(rank_tier_levels, levels = rank_tier_levels)) |>
+                dplyr::left_join(counts, by = "tier") |>
+                dplyr::mutate(n = dplyr::coalesce(n, 0L))
         })
 
-        output$factors_plot <- plotly::renderPlotly({
-            fd <- factors_data()
-            shiny::req(nrow(fd) > 0)
+        # Small horizontal-category bar chart shared by both band/tier
+        # charts: x = the 5 ordered levels, y = year count, bar color
+        # matching the map's band/tier palette; no legend (color already
+        # encodes the same x-axis category).
+        #
+        # Height is passed directly to plot_ly()'s own `height` argument
+        # (baked into the figure's layout), not just as CSS on the
+        # surrounding <div> (via plotlyOutput()/htmlwidgets sizing). CSS
+        # height alone didn't stick: bslib/htmlwidgets' "fill" behavior
+        # (the `html-fill-item`/`html-fill-container` classes plotly
+        # widgets and card_body() pick up) recomputes the widget's size
+        # from its container at render time, ignoring the inline height
+        # we set on the wrapper. Setting `height` on plot_ly() itself
+        # fixes the figure's pixel size unconditionally, independent of
+        # whatever the container resolves to.
+        BAR_CHART_HEIGHT <- 200
 
-            dims <- unname(map_metric_labels[map_dimension_vars])
-            cols <- stats::setNames(RColorBrewer::brewer.pal(5, "Set2"), dims)
-
+        band_bar_chart <- function(df, cat_col, colors, title) {
+            levels_ <- levels(df[[cat_col]])
             plotly::plot_ly(
-                data   = fd,
-                x      = ~year_n,
-                y      = ~value,
-                color  = ~dimension,
-                colors = cols,
-                type   = "scatter",
-                mode   = "lines+markers",
-                line   = list(width = 3),
-                marker = list(size = 9)
+                data   = df,
+                x      = df[[cat_col]],
+                y      = ~n,
+                type   = "bar",
+                marker = list(color = colors[as.character(df[[cat_col]])]),
+                height = BAR_CHART_HEIGHT
             ) |>
                 plotly::layout(
-                    xaxis  = list(title = "Year", dtick = 1),
-                    yaxis  = list(title = "Score (0\u2013100)", range = c(0, 100)),
-                    legend = list(orientation = "h", y = -0.25)
+                    title  = list(text = paste0("<b>", title, "</b>"), font = list(size = 15), y = 0.98),
+                    xaxis  = list(title = "", categoryorder = "array", categoryarray = levels_, tickfont = list(size = 10)),
+                    yaxis  = list(title = "Occurrences", titlefont = list(size = 11), tickfont = list(size = 10)),
+                    margin = list(t = 34, b = 60, l = 40, r = 10),
+                    showlegend = FALSE
+                ) |>
+                plotly::config(displayModeBar = FALSE) |>
+                # plotly's tickfont/titlefont don't expose a `weight`
+                # property, so bold axis text is applied directly to the
+                # rendered SVG <text> elements post-draw (font-weight is
+                # a valid SVG/CSS style, just not a plot_ly() layout arg).
+                htmlwidgets::onRender("
+                    function(el, x) {
+                        el.querySelectorAll(
+                            '.xtick text, .ytick text, .xtitle, .ytitle'
+                        ).forEach(function(t) { t.style.fontWeight = 'bold'; });
+                    }
+                ")
+        }
+
+        output$score_band_plot_or_placeholder <- shiny::renderUI({
+            if (sum(score_band_data()$n) == 0) {
+                return(no_data_msg("No score data available."))
+            }
+            plotly::plotlyOutput(ns("score_band_plot"), height = paste0(BAR_CHART_HEIGHT, "px"))
+        })
+
+        output$score_band_plot <- plotly::renderPlotly({
+            band_bar_chart(score_band_data(), "band", rsf_band_colors, "Score bands")
+        })
+
+        output$rank_tier_plot_or_placeholder <- shiny::renderUI({
+            if (sum(rank_tier_data()$n) == 0) {
+                return(no_data_msg("No rank data available."))
+            }
+            plotly::plotlyOutput(ns("rank_tier_plot"), height = paste0(BAR_CHART_HEIGHT, "px"))
+        })
+
+        output$rank_tier_plot <- plotly::renderPlotly({
+            band_bar_chart(rank_tier_data(), "tier", rank_tier_colors, "Rank tiers")
+        })
+
+        # --- Combined trend charts -----------------------------------
+        #
+        # Two bespoke charts, local to this module (not a reuse of
+        # chartServer()/mod_chart.R — that shared Trends component is
+        # deliberately scoped to Score/Rank only, dimensions excluded;
+        # see AGENTS.md's "Dimension data (2022+): per-view treatment"):
+        #
+        #   Score panel: black Score line (2013+, its natural start),
+        #     plus 5 thin dimension lines (2022-2025 only, naturally,
+        #     since that's all the data that exists for them).
+        #   Rank panel: black Rank bump line (~2003-2025), plus 5 thin
+        #     dimension-rank bump lines (rank_pol etc., already in rwb
+        #     — no need to recompute), built with ggplot2 + ggbump and
+        #     converted via ggplotly() (same technique as mod_chart.R's
+        #     Rank bump chart).
+        #
+        # Merged into one widget via plotly::subplot() (1:2 width split,
+        # matching each panel's natural x-axis span: 13 years vs. ~23).
+        # The 5 dimension colors would otherwise appear twice (once per
+        # panel); each dimension trace in both panels shares a
+        # `legendgroup` keyed on its label, with `showlegend` turned on
+        # only in the score panel's copy — plotly.js still toggles both
+        # traces together on legend click because they share a group,
+        # so the dedup doesn't cost the toggle behavior. "Score" and
+        # "Rank" each stay as their own single legend entry (only ever
+        # drawn once, in their own panel).
+        rank_dim_map <- c(
+            rank_pol = "Political Context", rank_eco = "Economic Context",
+            rank_leg = "Legal Context", rank_soc = "Social Context",
+            rank_saf = "Safety"
+        )
+        trend_dim_labels <- unname(map_metric_labels[map_dimension_vars])
+        trend_dim_colors <- stats::setNames(
+            RColorBrewer::brewer.pal(5, "Set2"), trend_dim_labels
+        )
+
+        # Every trace whose `name` is a dimension label gets a shared
+        # legendgroup and `show_dims` controls whether its legend entry
+        # is drawn in *this* panel. "Score" is relabelled to
+        # "Score/Rank" and kept as the sole legend entry for both black
+        # lines — "Rank" is functionally the same series (just plotted
+        # on the other panel's axis), so its own legend entry is
+        # dropped entirely rather than shown twice.
+        dedup_legend <- function(built, show_dims) {
+            built$x$data <- lapply(built$x$data, function(tr) {
+                nm <- tr$name
+                if (!is.null(nm)) {
+                    if (nm %in% trend_dim_labels) {
+                        tr$legendgroup <- nm
+                        tr$showlegend <- show_dims
+                    } else if (nm == "Score") {
+                        tr$name <- "Score/Rank"
+                        tr$legendgroup <- "Score/Rank"
+                        tr$showlegend <- TRUE
+                    } else if (nm == "Rank") {
+                        # ggplotly() may produce more than one "Rank"
+                        # trace (e.g. a line trace and a point trace);
+                        # all of them lose their legend entry here.
+                        tr$legendgroup <- "Score/Rank"
+                        tr$showlegend <- FALSE
+                    }
+                }
+                tr
+            })
+            built
+        }
+
+        # Forces matching axis tick/title font sizes on both panels
+        # after building. Needed because the score panel (plot_ly(),
+        # unset -> browser/Plotly.js default ~12px) and the rank panel
+        # (ggplot2 -> ggplotly(), theme_bw()'s default -> ~11.7px) come
+        # from two different font-size conventions that don't produce
+        # visually matching sizes on their own.
+        set_axis_font <- function(built, tick_size = 13, title_size = 14) {
+            for (ax in c("xaxis", "yaxis")) {
+                a <- built$x$layout[[ax]]
+                if (is.null(a)) a <- list()
+                a$tickfont <- list(size = tick_size)
+                # An axis with no title at all (e.g. the untitled
+                # plotly_empty() placeholder used for a country with no
+                # data at all) must stay untouched here — wrapping a
+                # NULL title in list(text = NULL, ...) breaks
+                # plotly::subplot()'s later attribute verification with
+                # "attempt to set an attribute on NULL".
+                if (!is.null(a$title)) {
+                    if (is.list(a$title)) {
+                        a$title$font <- list(size = title_size)
+                    } else {
+                        a$title <- list(text = a$title, font = list(size = title_size))
+                    }
+                }
+                built$x$layout[[ax]] <- a
+            }
+            built
+        }
+
+        score_trend_plot <- function(d) {
+            has_any_score_data <- any(!is.na(d$score)) ||
+                any(vapply(map_dimension_vars, function(v) any(!is.na(d[[v]])), logical(1)))
+            if (!has_any_score_data) return(plotly::plotly_empty(type = "scatter", mode = "markers"))
+
+            p <- plotly::plot_ly()
+            score_only <- d |> dplyr::filter(!is.na(score))
+            if (nrow(score_only) > 0) {
+                score_only$tooltip_text <- paste0(
+                    "Year: ", score_only$year_n, "<br>Score: ", score_only$score
                 )
+                p <- p |> plotly::add_trace(
+                    data = score_only, x = ~year_n, y = ~score,
+                    type = "scatter", mode = "lines+markers", name = "Score",
+                    text = ~tooltip_text, hoverinfo = "text",
+                    line = list(color = "black", width = 3),
+                    marker = list(color = "black", size = 12)
+                )
+            }
+            for (v in map_dimension_vars) {
+                lbl <- map_metric_labels[[v]]
+                dd <- d |> dplyr::filter(!is.na(.data[[v]]))
+                if (nrow(dd) == 0) next
+                dd$tooltip_text <- paste0("Year: ", dd$year_n, "<br>Score: ", dd[[v]])
+                p <- p |> plotly::add_trace(
+                    data = dd, x = ~year_n, y = as.formula(paste0("~", v)),
+                    type = "scatter", mode = "lines+markers", name = lbl,
+                    text = ~tooltip_text, hoverinfo = "text",
+                    line = list(color = trend_dim_colors[[lbl]], width = 1.5),
+                    marker = list(color = trend_dim_colors[[lbl]], size = 8)
+                )
+            }
+            # Zoom the y-axis to the country's actual score range (with
+            # a little padding) instead of the fixed 0-100 scale — most
+            # countries only ever span a narrow band of the full axis,
+            # which otherwise leaves the chart mostly empty and visually
+            # tiny relative to its allotted space.
+            all_vals <- c(d$score, unlist(d[map_dimension_vars], use.names = FALSE))
+            all_vals <- all_vals[!is.na(all_vals)]
+            rng <- range(all_vals)
+            pad <- max(diff(rng) * 0.1, 2)
+            y_range <- c(max(0, rng[1] - pad), min(100, rng[2] + pad))
+
+            p |>
+                plotly::layout(
+                    xaxis = list(title = "Year"),
+                    yaxis = list(title = "Score (0\u2013100)", range = y_range)
+                )
+        }
+
+        rank_trend_plot <- function(d) {
+            rank_df <- d |>
+                dplyr::filter(!is.na(rank)) |>
+                dplyr::transmute(year_n, series = "Rank", value = rank)
+            dim_df <- dplyr::bind_rows(lapply(names(rank_dim_map), function(v) {
+                d |>
+                    dplyr::filter(!is.na(.data[[v]])) |>
+                    dplyr::transmute(year_n, series = rank_dim_map[[v]], value = .data[[v]])
+            }))
+            # Rank's line is kept as thin as the dimension-rank lines —
+            # it doesn't need extra weight to stand out because it
+            # already spans far more years (~2003-2025 vs. 2022-2025
+            # for the dimensions).
+            df <- dplyr::bind_rows(rank_df, dim_df) |>
+                dplyr::mutate(
+                    lw = 0.7,
+                    pt = dplyr::if_else(series == "Rank", 3, 1.5)
+                )
+
+            if (nrow(df) == 0) return(plotly::plotly_empty(type = "scatter", mode = "markers"))
+
+            rank_colors <- c(Rank = "black", trend_dim_colors)
+
+            # geom_bump() errors on a series with fewer than 2 points
+            # (e.g. a defunct historical state with a single year of
+            # rank data) — such series still show as an isolated dot
+            # via geom_point() below, just without a bump line drawn
+            # through them.
+            bumpable <- df |>
+                dplyr::count(series) |>
+                dplyr::filter(n >= 2) |>
+                dplyr::pull(series)
+            bump_df <- df |> dplyr::filter(series %in% bumpable)
+
+            # `text` is mapped only on geom_point() (not the top-level
+            # aes()) because geom_bump()'s ggplotly() conversion errors
+            # ("argument 1 is not a vector") when it inherits a `text`
+            # aesthetic — its line traces end up with no tooltip text,
+            # which is fine since each point already carries year/value.
+            # geom_point()'s `text` aes isn't a real ggplot2 aesthetic —
+            # only ggplotly() reads it later to build the tooltip — so
+            # ggplot2 warns "Ignoring unknown aesthetics: text" on
+            # construction. Harmless; suppressed here.
+            p <- suppressWarnings(ggplot2::ggplot(
+                df, ggplot2::aes(x = year_n, y = value, color = series, linewidth = lw)
+            ) +
+                ggplot2::geom_point(ggplot2::aes(
+                    size = pt,
+                    text = paste0("Year: ", year_n, "<br>Rank: ", value)
+                )))
+            p <- p +
+                ggplot2::scale_linewidth_identity() +
+                ggplot2::scale_size_identity() +
+                ggplot2::scale_colour_manual(values = rank_colors) +
+                ggplot2::scale_y_reverse() +
+                ggplot2::theme_bw() +
+                ggplot2::theme(legend.position = "none") +
+                ggplot2::xlab("Year") +
+                ggplot2::ylab("Rank")
+
+            if (nrow(bump_df) > 0) {
+                p <- p + ggbump::geom_bump(data = bump_df)
+            }
+
+            plotly::ggplotly(p, tooltip = "text")
+        }
+
+        trend_data_available <- shiny::reactive({
+            d <- country_data()
+            any(!is.na(d$score)) || any(!is.na(d$rank))
+        })
+
+        output$trend_plot_or_placeholder <- shiny::renderUI({
+            if (!trend_data_available()) {
+                return(no_data_msg("No Score or Rank data available for this country."))
+            }
+            plotly::plotlyOutput(ns("trend_plot"), height = "100%")
+        })
+
+        output$trend_plot <- plotly::renderPlotly({
+            shiny::req(trend_data_available())
+            d <- country_data()
+
+            # plot_ly() and ggplotly() each stamp a default top-level
+            # $x$config onto their widget; subplot() tries to merge both
+            # widgets' top-level attributes and warns "Can only have
+            # one: config" when the two configs differ. Stripping it
+            # from *both* panels instead trips a different subplot()
+            # warning ("No config found"), so keep exactly one copy
+            # (the score panel's) and strip the other; the single
+            # config() call after subplot()/layout() below is what
+            # actually governs the merged widget's behavior anyway.
+            p_score <- score_trend_plot(d) |>
+                plotly::plotly_build() |>
+                set_axis_font() |>
+                dedup_legend(show_dims = TRUE)
+            p_rank <- rank_trend_plot(d) |>
+                plotly::plotly_build() |>
+                set_axis_font() |>
+                dedup_legend(show_dims = FALSE)
+            p_rank$x$config <- NULL
+
+            plotly::subplot(
+                p_score, p_rank,
+                nrows = 1, widths = c(1 / 3, 2 / 3),
+                titleX = TRUE, titleY = TRUE, margin = 0.04
+            ) |>
+                plotly::layout(
+                    # subplot() otherwise inherits a top-level
+                    # showlegend = FALSE from the rank panel's
+                    # theme(legend.position = "none") (see
+                    # rank_trend_plot()) and silences every trace's
+                    # legend regardless of their own showlegend value
+                    # set in dedup_legend() above.
+                    showlegend = TRUE,
+                    legend = list(
+                        orientation = "h", xanchor = "center", x = 0.5,
+                        yanchor = "top", y = -0.3, font = list(size = 15)
+                    ),
+                    margin = list(b = 110)
+                ) |>
+                plotly::config(displayModeBar = FALSE)
         })
     })
 }

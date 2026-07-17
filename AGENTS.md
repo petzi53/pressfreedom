@@ -8,7 +8,7 @@ This file provides context and guidance for AI agents working on the `pressfreed
 
 - **Map** — a choropleth of the world, colored by score/rank/dimension for a chosen year; the low-friction entry point into the data.
 - **Trends** — multi-country line charts (Score) or bump charts (Rank) over 2002–2025.
-- **Country** — a single country's profile: rank/score stat blocks, an embedded compact Trends chart, and a 2022–2025 Explanatory Factors chart.
+- **Country** — a single country's profile: a horizontal Rank/Score stat table, score-band/rank-tier count bar charts, and two combined trend charts (Score + dimensions, Rank + dimension ranks) sharing one deduplicated legend.
 
 Clicking a country on the Map or a point on a Trends chart jumps to its Country profile (see "Shared navigation" below).
 
@@ -84,7 +84,7 @@ The app uses a fully modular design (`inst/app/`) with three `navset_pill`/`navs
 
 - **`mod_map`** — choropleth (`plotly::plot_geo()`) colored by Score, Rank, or a 2022+ dimension. Year choices react to both `zone` and `metric` (dimensions restrict to 2022+, score to 2013+). Score-like metrics use RSF's real 5-class band classification; Rank uses percentile tiers — both exposed as independent `checkboxGroupInput` toggles that grey out (not remove) unchecked bands. See "Map score/rank bands" below.
 - **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. Hovering a line dims the others (`plotlyProxy` restyle); clicking a point opens a popover with a "Go to Country view" button.
-- **`mod_country`** — flag/name header, Rank and Score stat blocks (current/highest/lowest/median-or-mean/biggest climb/biggest fall), an embedded compact `mod_chart` for the long-run Score trend, and a small multi-line "Explanatory Factors" chart scoped to 2022–2025 (one line per dimension, its own short x-axis — a distinct component from `mod_chart`, not a reuse of it).
+- **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2025) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
 - **`mod_inputs`** (Trends sidebar) — `selectInput`s for variable (Score/Rank only — dimensions intentionally excluded, see below) and country (multiple selection).
 - **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header.
 - **`flags.R`** — maps `rwb$iso` (alpha-3) to `flagon`'s alpha-2 flag codes; see "Flags (`flagon`)" below.
@@ -117,7 +117,7 @@ Dimension scores (`political_context`, `economic_context`, `legal_context`, `soc
 | :-- | :-- | :-- |
 | **Map** | Coloring option, single year at a time (year choices restrict to 2022–2025 when picked) | Already single-year by construction — a snapshot is the natural unit regardless of series length. |
 | **Trends** (multi-country) | Dropped from the variable picker entirely — Score/Rank only | Comparing 5 dimensions × several countries over just 4 years, on an axis shared with 23 years of Score/Rank history, is a "little information, real complexity" chart — not legible. |
-| **Country** (single country) | "Explanatory Factors" chart: one line per dimension, 2022–2025 only, on its own short x-axis | With one country, 4 years × 5 lines is legible and shows a genuine short trend — the complexity-vs-information ratio that's bad in Trends is fine here because both the country count (1) and the axis (own 4-year range, not stretched to 23) are scoped correctly. |
+| **Country** (single country) | Overlaid onto the Score/Rank trend charts as 5 thin lines each (2022–2025 only, naturally), sharing a deduplicated legend via `legendgroup` — see `mod_country`'s bullet above | With one country, 4 years × 5 lines is legible and shows a genuine short trend — the complexity-vs-information ratio that's bad in Trends is fine here because both the country count (1) and the axis (each panel's own natural range: 2013–2025 for score, ~2003–2025 for rank) are scoped correctly. |
 
 **Revisit at a future annual update**: as dimensions accumulate more years — a decade's worth by ~2032 — reconsider whether they've earned a slot in the Trends variable picker too. Not done as of this writing (2025 is the 4th year of dimension data).
 
@@ -149,8 +149,8 @@ Anything else unmapped falls back to `NA` → no flag image / no emoji, rather t
 | `dplyr` | Data filtering in modules |
 | `ggplot2` | Bump chart base layer (Trends' Rank view) |
 | `ggbump` | `geom_bump()` for the rank bump chart (GitHub: `davidsjoberg/ggbump`) |
-| `plotly` | Interactive charts (Trends, Map, Country's Explanatory Factors) |
-| `RColorBrewer` | Color palettes (Trends line colors, Explanatory Factors dimension colors) |
+| `plotly` | Interactive charts (Trends, Map, Country's stat-bar and combined trend charts) |
+| `RColorBrewer` | Color palettes (Trends line colors, Country's dimension colors) |
 | `flagon` | Flag PNG/SVG assets (GitHub: `coolbutuseless/flagon`) |
 | `countrycode` | iso3 → iso2 lookups for flags |
 | `htmlwidgets`, `stringr` | Supporting packages for the above |
