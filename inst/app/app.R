@@ -24,43 +24,32 @@ rwb <- pressfreedom::rwb
 shiny::addResourcePath("flags", system.file("png", package = "flagon"))
 
 ##############################################################
-ui <- bslib::page_sidebar(
+ui <- bslib::page_navbar(
     title = shiny::actionLink(
         "reset_app",
         "World Press Freedom Index",
         style = "color: inherit; text-decoration: none;"
     ),
+    id = "view",
     fillable = TRUE,
-    sidebar = bslib::sidebar(
-        width = 260,
-        bslib::navset_pill(
-            id = "view",
-            bslib::nav_panel("Map",    mapSidebarUI("map", rwb)),
-            bslib::nav_panel("Trends", compareSidebarUI("inputs", rwb)),
-            bslib::nav_panel("Country", countrySidebarUI("country", rwb))
-        )
+    bslib::nav_panel(
+        "Map",
+        sidebar = mapSidebarUI("map", rwb),
+        mapMainUI("map")
     ),
-    bslib::navset_hidden(
-        id = "main_view",
-        selected = "Map",
-        bslib::nav_panel("Map",    mapMainUI("map")),
-        bslib::nav_panel("Trends", compareMainUI("chart")),
-        bslib::nav_panel("Country", countryMainUI("country"))
+    bslib::nav_panel(
+        "Trends",
+        sidebar = compareSidebarUI("inputs", rwb),
+        compareMainUI("chart")
+    ),
+    bslib::nav_panel(
+        "Country",
+        sidebar = countrySidebarUI("country", rwb),
+        countryMainUI("country")
     ),
     shiny::tags$style("
         /* Dashboard should never scroll — fixes the scrollbar issue */
         html, body { overflow: hidden; height: 100%; }
-
-        /* Stack nav pills vertically in the sidebar */
-        .bslib-sidebar-layout > .sidebar > .sidebar-content .nav-pills {
-            flex-direction: column;
-        }
-        /* Remove border and background from pill content area inside sidebar */
-        .bslib-sidebar-layout > .sidebar > .sidebar-content .tab-content {
-            border: none;
-            background: transparent;
-            padding-top: 0.75rem;
-        }
 
         /* Title acts as a home link — inherit navbar colour, underline on hover */
         #reset_app { color: inherit !important; text-decoration: none !important; }
@@ -70,16 +59,10 @@ ui <- bslib::page_sidebar(
 
 ##############################################################
 server <- function(input, output, session) {
-    # Keep main content in sync with sidebar pill selection
-    shiny::observe({
-        bslib::nav_select("main_view", input$view)
-    })
-
     # Title click: navigate to Map and signal the map module to reset
     reset_trigger <- shiny::reactiveVal(0)
     shiny::observeEvent(input$reset_app, {
         bslib::nav_select("view", "Map")
-        bslib::nav_select("main_view", "Map")
         reset_trigger(reset_trigger() + 1)
     })
 
@@ -112,12 +95,10 @@ server <- function(input, output, session) {
     })
 
     # The one place a click from either view actually navigates: switch
-    # both the sidebar pill and the hidden content pane to Country, and
-    # preselect the clicked country there.
+    # to the Country tab and preselect the clicked country there.
     shiny::observeEvent(selected_country(), {
         shiny::req(selected_country())
         bslib::nav_select("view", "Country")
-        bslib::nav_select("main_view", "Country")
         shiny::updateSelectInput(session, "country-country", selected = selected_country())
     })
 
