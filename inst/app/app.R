@@ -47,7 +47,7 @@ ui <- bslib::page_navbar(
         sidebar = countrySidebarUI("country", rwb),
         countryMainUI("country")
     ),
-    shiny::tags$style("
+    header = shiny::tags$style("
         /* Dashboard should never scroll — fixes the scrollbar issue */
         html, body { overflow: hidden; height: 100%; }
 
