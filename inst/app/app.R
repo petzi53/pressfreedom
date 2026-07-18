@@ -32,21 +32,26 @@ ui <- bslib::page_navbar(
     ),
     id = "view",
     fillable = TRUE,
-    bslib::nav_panel(
-        "Map",
-        sidebar = mapSidebarUI("map", rwb),
-        mapMainUI("map")
+    # bslib's installed version (0.11.0) has no per-nav_panel() `sidebar =`
+    # argument — page_navbar() only supports one page-level `sidebar =`,
+    # shared across all panels. Per-view sidebar *content* is achieved with
+    # a navset_hidden() inside that single sidebar, kept in sync with the
+    # visible navbar tabs via the "view" -> "sidebar_view" nav_select() in
+    # the server below (mirrors the old view/main_view sync, just applied
+    # to the sidebar instead of the main content now that the switcher
+    # itself lives in the navbar).
+    sidebar = bslib::sidebar(
+        width = 260,
+        bslib::navset_hidden(
+            id = "sidebar_view",
+            bslib::nav_panel_hidden("Map",    mapSidebarUI("map", rwb)),
+            bslib::nav_panel_hidden("Trends", compareSidebarUI("inputs", rwb)),
+            bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb))
+        )
     ),
-    bslib::nav_panel(
-        "Trends",
-        sidebar = compareSidebarUI("inputs", rwb),
-        compareMainUI("chart")
-    ),
-    bslib::nav_panel(
-        "Country",
-        sidebar = countrySidebarUI("country", rwb),
-        countryMainUI("country")
-    ),
+    bslib::nav_panel("Map",    mapMainUI("map")),
+    bslib::nav_panel("Trends", compareMainUI("chart")),
+    bslib::nav_panel("Country", countryMainUI("country")),
     header = shiny::tags$style("
         /* Dashboard should never scroll — fixes the scrollbar issue */
         html, body { overflow: hidden; height: 100%; }
@@ -59,6 +64,12 @@ ui <- bslib::page_navbar(
 
 ##############################################################
 server <- function(input, output, session) {
+    # Keep the sidebar's hidden navset in sync with the visible navbar tabs
+    # (see the `sidebar =` comment in the UI above for why this exists).
+    shiny::observe({
+        bslib::nav_select("sidebar_view", input$view)
+    })
+
     # Title click: navigate to Map and signal the map module to reset
     reset_trigger <- shiny::reactiveVal(0)
     shiny::observeEvent(input$reset_app, {
