@@ -80,7 +80,7 @@ These zones appear **only in 2022** and do not align with the historical classif
 
 ## Shiny App Architecture
 
-The app uses a fully modular design (`inst/app/`) with three `navset_pill`/`navset_hidden` panels wired in `app.R`: **Map**, **Trends**, **Country**.
+The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar()` with a single `id = "view"` navset switching between three `nav_panel()`s wired in `app.R`: **Map**, **Trends**, **Country**. `page_navbar()`'s installed version (0.11.0) has no per-`nav_panel()` `sidebar =` argument — only one page-level `sidebar =`, shared across all panels — so per-view sidebar *content* is achieved with a `navset_hidden(id = "sidebar_view")` inside that single sidebar, kept in sync with the visible navbar tabs via a `nav_select("sidebar_view", input$view)` observer in the server.
 
 - **`mod_map`** — choropleth (`plotly::plot_geo()`) colored by Score, Rank, or a 2022+ dimension. Year choices react to both `zone` and `metric` (dimensions restrict to 2022+, score to 2013+). Score-like metrics use RSF's real 5-class band classification; Rank uses percentile tiers — both exposed as independent `checkboxGroupInput` toggles that grey out (not remove) unchecked bands. See "Map score/rank bands" below.
 - **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. Hovering a line dims the others (`plotlyProxy` restyle); clicking a point opens a popover with a "Go to Country view" button.
@@ -93,7 +93,7 @@ The app uses a fully modular design (`inst/app/`) with three `navset_pill`/`navs
 
 ### Shared navigation
 
-Both the Map's click-to-navigate and Trends' click-to-inspect popover ("Go to Country view") feed into a single `selected_country` reactiveVal in `app.R`, rather than each view running its own copy of the navigation logic. One observer downstream does the actual work: switch the `view`/`main_view` navsets to "Country" and preselect the clicked country there. If you add a third click-to-navigate entry point, feed it into `selected_country` too rather than duplicating that observer.
+Both the Map's click-to-navigate and Trends' click-to-inspect popover ("Go to Country view") feed into a single `selected_country` reactiveVal in `app.R`, rather than each view running its own copy of the navigation logic. One observer downstream does the actual work: `nav_select("view", "Country")` (which also drives the sidebar's `navset_hidden` via the sync observer above) and preselect the clicked country there. If you add a third click-to-navigate entry point, feed it into `selected_country` too rather than duplicating that observer.
 
 ## Map score/rank bands
 
@@ -145,7 +145,7 @@ Anything else unmapped falls back to `NA` → no flag image / no emoji, rather t
 | Package | Role |
 | :--- | :--- |
 | `shiny` | Web framework |
-| `bslib` | Bootstrap UI (`page_sidebar`, `card`, `navset_pill`/`navset_hidden`) |
+| `bslib` | Bootstrap UI (`page_navbar`, `card`, `navset_hidden`) |
 | `dplyr` | Data filtering in modules |
 | `ggplot2` | Bump chart base layer (Trends' Rank view) |
 | `ggbump` | `geom_bump()` for the rank bump chart (GitHub: `davidsjoberg/ggbump`) |

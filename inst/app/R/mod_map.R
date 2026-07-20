@@ -338,7 +338,7 @@ mapServer <- function(id, rwb, reset = NULL) {
           annotations = list(
             list(
               text = paste0(
-                "Press Freedom ", map_metric_labels[metric], " \u2013 ", input$year
+                "<b>Press Freedom ", map_metric_labels[metric], " \u2013 ", input$year, "</b>"
               ),
               xref = "paper", yref = "paper", x = 0, y = 1,
               xanchor = "left", yanchor = "top",

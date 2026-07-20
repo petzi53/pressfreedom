@@ -77,7 +77,22 @@ stat_table <- function(rank_st, score_st, rank_central, score_central) {
 
   shiny::tags$table(
     class = "table table-sm mb-1",
-    style = "font-size: 0.78rem; width: 100%;",
+    # table-layout: fixed makes `width: 100%` a hard cap rather than a
+    # suggestion — with the default `auto` layout, a browser lets a
+    # table's *rendered* width exceed a declared 100% whenever a
+    # column's content can't shrink below its natural minimum, which
+    # is exactly what let this table bleed out from under the
+    # score-band/rank-tier charts to its right at intermediate
+    # container widths (roughly 700-990px) before the Overview row's
+    # own stacking breakpoint kicked in. But with columns forced to
+    # divide evenly regardless of content, shrinking *too* far starts
+    # breaking single words mid-character ("Curre-nt") since there's
+    # no space to wrap at instead — min-width: 300px keeps every
+    # column wide enough to avoid that, and the surrounding div's
+    # overflow-x: auto (see the "country-overview-stats" div above)
+    # gives the table its own scrollbar rather than overflowing onto
+    # its siblings once the container is narrower than that.
+    style = "font-size: 0.78rem; width: 100%; min-width: 300px; table-layout: fixed;",
     shiny::tags$thead(
       shiny::tags$tr(
         shiny::tags$th(""),
@@ -158,7 +173,26 @@ countrySidebarUI <- function(id, rwb) {
 
 countryMainUI <- function(id) {
     ns <- shiny::NS(id)
-    shiny::tagList(
+    # This outer div is itself the width probe (a ResizeObserver on it,
+    # wired up in app.R's header script, feeds the *actual available
+    # width* to countryServer(), which is what the trend chart's
+    # subplot layout should react to — deliberately NOT
+    # window.innerWidth: that measure is off by however much the
+    # sidebar happens to be taking up, so it was reporting "plenty of
+    # room" even while the content pane was already squeezed down to
+    # sidebar-open width). Doubling as the probe (rather than a
+    # separate 1px sibling) also means it's the sole child of bslib's
+    # nav_panel content pane, so none of that pane's own inter-child
+    # gap (24px, applied twice with a 3-way split) is spent on
+    # whitespace the user never asked for — the header/body gap below
+    # is instead a deliberate, much smaller 8px we control directly.
+    # `flex: 1 1 auto` (rather than a fixed height) lets it fill
+    # whatever height the fillable page layout actually gives the tab
+    # pane, so there's no separate magic-number height calc to keep in
+    # sync with header/padding changes elsewhere.
+    shiny::div(
+        id = ns("width_probe"),
+        style = "flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px;",
         shiny::uiOutput(ns("country_header")),
         shiny::uiOutput(ns("body"))
     )
@@ -173,6 +207,21 @@ countryServer <- function(id, rwb) {
         })
 
         selected <- shiny::reactive(input$country)
+
+        # Only the *side of the breakpoint* matters for the trend
+        # chart's layout, not the exact width — reactiveVal only
+        # invalidates its subscribers when the new value differs from
+        # the old one (identical() under the hood), so this collapses
+        # every resize tick into a single re-plot at the moment the
+        # breakpoint is actually crossed, instead of re-plotting on
+        # every tick while dragging a window edge. 700px is the same
+        # number used by the matching `@container` CSS rule in app.R
+        # (see the "country-body" container there) — keep them in sync
+        # if you retune the breakpoint.
+        narrow <- shiny::reactiveVal(FALSE)
+        shiny::observeEvent(input$width_probe_val, {
+            narrow(input$width_probe_val < 700)
+        }, ignoreNULL = TRUE)
 
         # This country's full history (all years, every column) — the
         # single source the stat blocks and the factors chart both
@@ -199,16 +248,47 @@ countryServer <- function(id, rwb) {
                 return(shiny::div(
                     style = paste(
                         "display: flex; align-items: center; justify-content: center;",
-                        "height: calc(100vh - 155px); color: #6c757d;"
+                        "flex: 1 1 auto; min-height: 0; color: #6c757d;"
                     ),
                     shiny::p("Select a country to view its profile.")
                 ))
             }
 
             shiny::div(
+                # flex: 1 1 auto (not a fixed height) — this div is the
+                # sole other flex child of countryMainUI()'s outer
+                # wrapper (alongside the h3 header above it), so it
+                # simply claims whatever's left after the header's own
+                # height, in whatever the fillable page layout actually
+                # gives the tab pane. A small padding gives the cards'
+                # box-shadow (their only visible "border" — see the
+                # bslib .card CSS, which sets border-color to
+                # transparent and relies on box-shadow instead) room to
+                # render on all four sides; without it, this div's own
+                # edges (flush against the first/last card) clipped the
+                # shadow via the overflow-y: auto below, leaving the
+                # overview card's top/left and the trend card's
+                # bottom/left looking borderless.
+                #
+                # scrollbar-gutter: stable reserves the scrollbar's width
+                # whether or not it's actually showing, so its
+                # appearance/disappearance (as content height crosses
+                # the container's height) doesn't itself change the
+                # available width — without this, that width change fed
+                # back into Plotly's responsive resize, which fed back
+                # into the content height, producing a slow-oscillating
+                # resize loop lasting several seconds.
+                # container-type/-name turn this div into a CSS
+                # "query container" — the @container rules in app.R's
+                # header (rather than @media on the viewport) key off
+                # *this* element's own width, so they always agree with
+                # the width_probe_val-driven `narrow` reactive above,
+                # which measures the same content pane via JS.
                 style = paste(
-                    "height: calc(100vh - 155px); display: flex;",
-                    "flex-direction: column; gap: 12px;"
+                    "flex: 1 1 auto; min-height: 0; display: flex;",
+                    "flex-direction: column; gap: 12px; overflow-y: auto;",
+                    "scrollbar-gutter: stable; padding: 6px;",
+                    "container-type: inline-size; container-name: country-body;"
                 ),
                 # Overview row: stat table (left ~50%) + two band/tier count
                 # bar charts (right ~50%, split ~25/25), squeezed to line up
@@ -228,9 +308,24 @@ countryServer <- function(id, rwb) {
                             fillable = FALSE,
                             padding = c("0.75rem", "1rem", "0.25rem", "1rem"),
                             shiny::div(
+                                class = "country-overview-row",
                                 style = "display: flex; gap: 12px; align-items: flex-start;",
                                 shiny::div(
-                                    style = "flex: 1 1 50%; min-width: 0;",
+                                    class = "country-overview-stats",
+                                    # min-width: 0 (rather than the
+                                    # table's own natural minimum) lets
+                                    # this flex item keep shrinking
+                                    # past that point; overflow-x: auto
+                                    # on *this* box is what actually
+                                    # catches the difference once the
+                                    # table (min-width: 300px, see
+                                    # stat_table()) can't shrink
+                                    # further, giving the table its own
+                                    # small horizontal scrollbar
+                                    # instead of bleeding into the
+                                    # score-band/rank-tier charts to
+                                    # its right.
+                                    style = "flex: 1 1 50%; min-width: 0; overflow-x: auto;",
                                     shiny::uiOutput(ns("stat_table")),
                                     shiny::p(
                                         "* Mean for Score (continuous); Median for Rank (ordinal).",
@@ -239,10 +334,12 @@ countryServer <- function(id, rwb) {
                                     )
                                 ),
                                 shiny::div(
+                                    class = "country-overview-chart",
                                     style = "flex: 1 1 25%; min-width: 0; height: 200px;",
                                     shiny::uiOutput(ns("score_band_plot_or_placeholder"))
                                 ),
                                 shiny::div(
+                                    class = "country-overview-chart",
                                     style = "flex: 1 1 25%; min-width: 0; height: 200px;",
                                     shiny::uiOutput(ns("rank_tier_plot_or_placeholder"))
                                 )
@@ -255,7 +352,18 @@ countryServer <- function(id, rwb) {
                 # with a single deduplicated floating legend (see
                 # trend_plot_or_placeholder / trend_plot below).
                 shiny::div(
-                    style = "flex: 1 1 0; min-height: 0;",
+                    class = "country-trend-wrapper",
+                    # min-height: 420px is a floor, not a fixed size —
+                    # flex-grow still lets this wrapper claim any extra
+                    # room beyond the overview card on tall windows.
+                    # Below 420px the two trend panels' x-axis title and
+                    # bottom legend start crowding each other (Plotly
+                    # reserves a fixed pixel margin for both regardless
+                    # of how little total height it's given), so past
+                    # this point the page scrolls (see the body div's
+                    # own overflow-y: auto) instead of the charts
+                    # shrinking into illegibility.
+                    style = "flex: 1 1 0; min-height: 420px;",
                     bslib::card(
                         height = "100%",
                         bslib::card_header("Score & Rank trends (with explanatory factors, 2022\u20132025)"),
@@ -466,17 +574,29 @@ countryServer <- function(id, rwb) {
             built
         }
 
-        # Forces matching axis tick/title font sizes on both panels
-        # after building. Needed because the score panel (plot_ly(),
-        # unset -> browser/Plotly.js default ~12px) and the rank panel
-        # (ggplot2 -> ggplotly(), theme_bw()'s default -> ~11.7px) come
-        # from two different font-size conventions that don't produce
-        # visually matching sizes on their own.
+        # Forces matching axis tick/title font sizes AND a matching
+        # panel border on both panels after building. Font sizes need
+        # this because the score panel (plot_ly(), unset ->
+        # browser/Plotly.js default ~12px) and the rank panel (ggplot2
+        # -> ggplotly(), theme_bw()'s default -> ~11.7px) come from two
+        # different font-size conventions that don't produce visually
+        # matching sizes on their own. The border needs it for the same
+        # reason: plot_ly() draws no panel border by default, while
+        # ggplot2's theme_bw() does (a call to which used to leave the
+        # two panels visibly inconsistent side by side) — showline +
+        # mirror draws the same 4-sided box on *both* panels from one
+        # shared code path instead, so they're guaranteed to match
+        # exactly rather than relying on two independent
+        # border-drawing mechanisms staying in visual sync by luck.
         set_axis_font <- function(built, tick_size = 13, title_size = 14) {
             for (ax in c("xaxis", "yaxis")) {
                 a <- built$x$layout[[ax]]
                 if (is.null(a)) a <- list()
                 a$tickfont <- list(size = tick_size)
+                a$showline <- TRUE
+                a$mirror <- TRUE
+                a$linecolor <- "#333333"
+                a$linewidth <- 1
                 # An axis with no title at all (e.g. the untitled
                 # plotly_empty() placeholder used for a country with no
                 # data at all) must stay untouched here — wrapping a
@@ -601,7 +721,13 @@ countryServer <- function(id, rwb) {
                 ggplot2::scale_colour_manual(values = rank_colors) +
                 ggplot2::scale_y_reverse() +
                 ggplot2::theme_bw() +
-                ggplot2::theme(legend.position = "none") +
+                # Panel border is dropped here and instead drawn
+                # identically on both panels by set_axis_font()'s
+                # showline/mirror, below — see that function's comment
+                # for why (theme_bw()'s own border, left in place,
+                # visibly mismatched the plot_ly() score panel's lack
+                # of one).
+                ggplot2::theme(legend.position = "none", panel.border = ggplot2::element_blank()) +
                 ggplot2::xlab("Year") +
                 ggplot2::ylab("Rank")
 
@@ -621,6 +747,18 @@ countryServer <- function(id, rwb) {
             if (!trend_data_available()) {
                 return(no_data_msg("No Score or Rank data available for this country."))
             }
+            # height = "100%" resolves correctly in both wide and
+            # narrow mode because .country-trend-wrapper always has a
+            # *definite* size (flex-basis, not just min-height — see
+            # app.R's @container rule) — no need to branch on narrow()
+            # here. This also means this renderUI (and thus the
+            # plotlyOutput() div itself) no longer needs to
+            # re-render when narrow() flips, only output$trend_plot's
+            # *content* does — avoiding a race where the container was
+            # destroyed/recreated at the same moment the new subplot
+            # layout arrived, which could leave Plotly computing a
+            # wildly wrong height (observed: tens of thousands of px)
+            # against a container that hadn't finished resizing yet.
             plotly::plotlyOutput(ns("trend_plot"), height = "100%")
         })
 
@@ -647,11 +785,28 @@ countryServer <- function(id, rwb) {
                 dedup_legend(show_dims = FALSE)
             p_rank$x$config <- NULL
 
-            plotly::subplot(
-                p_score, p_rank,
-                nrows = 1, widths = c(1 / 3, 2 / 3),
-                titleX = TRUE, titleY = TRUE, margin = 0.04
-            ) |>
+            # Side by side above the breakpoint (1:2 width split, matching
+            # each panel's natural x-axis span: 13 years vs. ~23); stacked
+            # vertically below it, where the Overview row has already
+            # gone to a single narrow column — squeezing both panels into
+            # that width side by side left each one only ~150px wide,
+            # crushing the x-axis and making the rank bump chart in
+            # particular unreadable ("rotated" is really just its bumps
+            # collapsing into near-vertical lines at that aspect ratio).
+            is_narrow <- isTRUE(narrow())
+            subplot_args <- if (is_narrow) {
+                list(nrows = 2, heights = c(0.45, 0.55), margin = 0.08)
+            } else {
+                list(nrows = 1, widths = c(1 / 3, 2 / 3), margin = 0.04)
+            }
+
+            legend_y <- if (is_narrow) -0.14 else -0.3
+            margin_b <- if (is_narrow) 90 else 110
+
+            widget <- do.call(plotly::subplot, c(
+                list(p_score, p_rank, titleX = TRUE, titleY = TRUE),
+                subplot_args
+            )) |>
                 plotly::layout(
                     # subplot() otherwise inherits a top-level
                     # showlegend = FALSE from the rank panel's
@@ -662,11 +817,13 @@ countryServer <- function(id, rwb) {
                     showlegend = TRUE,
                     legend = list(
                         orientation = "h", xanchor = "center", x = 0.5,
-                        yanchor = "top", y = -0.3, font = list(size = 15)
+                        yanchor = "top", y = legend_y, font = list(size = 15)
                     ),
-                    margin = list(b = 110)
+                    margin = list(b = margin_b)
                 ) |>
                 plotly::config(displayModeBar = FALSE)
+
+            widget
         })
     })
 }
