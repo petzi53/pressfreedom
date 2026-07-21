@@ -5,8 +5,11 @@
 ## mapSidebarUI() — year/zone/metric filters + band checkboxes (sidebar)
 ## mapMainUI()    — choropleth output
 ## mapServer()    — reactive filtering, choropleth rendering, and
-##                  click-to-navigate; returns a reactive holding the most
-##                  recently clicked country's name (or NULL)
+##                  click-to-navigate; returns a reactive holding
+##                  list(country=, nonce=) for the most recently clicked
+##                  country (or NULL) — not a bare string; see the
+##                  "Click-to-navigate" comment below for why the nonce
+##                  is needed
 ##
 ## Bands (score-like metrics) use RSF's real 5-class classification, taken
 ## verbatim from RSF's methodology page ("Press freedom map" section):
@@ -363,11 +366,34 @@ mapServer <- function(id, rwb, reset = NULL) {
     # Click-to-navigate: a click on any country sets a reactive that the
     # app-level server can observe to switch to the Country view. Replaces
     # the old dropdown + hover-pulse selection JS entirely.
+    #
+    # Stored as list(country=, nonce=) rather than a bare string:
+    # reactiveVal() skips invalidating dependents when set to a value
+    # identical() to its current one. The nonce (proc.time() elapsed
+    # seconds) ensures two clicks are never identical(), even when the
+    # country name repeats or when a different module already set the
+    # same country into the shared selected_country reactiveVal in
+    # app.R — an integer counter would collide across modules.
+    #
+    # priority = "event" on both event_data() calls below is also
+    # required: event_data()'s default priority ("input") reads from an
+    # internal plotly-managed reactiveValues cache that itself skips
+    # invalidating dependents when the newly parsed click payload is
+    # identical() to the previously cached one — the same class of bug
+    # as above, just inside plotly's own code. Without it, re-clicking
+    # the same country never even reaches this observeEvent(), so the
+    # nonce below would never get a chance to run. See mod_chart.R's
+    # matching click observer for the same fix.
     clicked_country <- shiny::reactiveVal(NULL)
-    shiny::observeEvent(plotly::event_data("plotly_click", source = ns("map")), {
-      ed <- plotly::event_data("plotly_click", source = ns("map"))
+    shiny::observeEvent(
+      plotly::event_data("plotly_click", source = ns("map"), priority = "event"),
+      {
+      ed <- plotly::event_data("plotly_click", source = ns("map"), priority = "event")
       shiny::req(ed$customdata)
-      clicked_country(ed$customdata)
+      clicked_country(list(
+        country = ed$customdata,
+        nonce = as.numeric(proc.time()[["elapsed"]])
+      ))
     })
 
     shiny::reactive(clicked_country())

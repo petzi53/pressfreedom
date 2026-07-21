@@ -1,8 +1,8 @@
 ## inst/app/R/mod_chart.R
-## Module for the Trends chart card (title + plotly output + click popover).
+## Module for the Trends chart card (title + plotly output + click-to-
+## navigate).
 ##
-## chartUI()     — card HTML: title, plot output, and a small popover panel
-##                 for click-to-inspect
+## chartUI()     — card HTML: title + plot output
 ## chartServer() — renders title text and the plotly chart; wires
 ##                 hover-dims-others and click-to-navigate
 ##
@@ -12,33 +12,20 @@
 ##              from the Trends variable picker — see AGENTS.md for why)
 ##   country  — reactive character vector of selected country names
 ##
-## Returns: a reactive holding the country name most recently confirmed
-## via the popover's "Go to Country view" button (or NULL). Wired at the
-## app level the same way mapServer()'s click reactive is — full
-## consolidation into one shared "selected country" reactive across all
-## views is a later step.
+## Returns: a reactive holding list(country=, nonce=) for the most
+## recently clicked chart point (or NULL) — not a bare string; see the
+## "Most recently clicked country" comment below for why the nonce is
+## needed. Wired at the app level the same way mapServer()'s click
+## reactive is — both feed into one shared "selected country"
+## reactiveVal in app.R.
 ##
-## Hover-dims-others and click-to-inspect both need a trace -> country
-## lookup. Rather than tracking trace order by hand (fragile once the
-## bump chart's extra geom_text label traces are involved), each trace's
-## `name` is read back from the built widget: plot_ly()'s `color =` and
-## ggplot's `aes(color = country_en)` both set trace `name` to the
-## country automatically. Only the two geom_text label traces (drawn
-## with a fixed color, not mapped to country) come back unnamed — those
-## are simply excluded from hover-dimming and click-to-inspect.
+## Both hover-dimming and click-to-navigate are handled entirely
+## client-side via an onRender JS callback (see renderPlotly below).
+## Each trace's `name` (set by plot_ly(color=) / ggplot aes(color=))
+## is the country name; the JS click handler reads it directly from
+## el.data[curveNumber].name, avoiding an R-side lookup.
 
 pal <- RColorBrewer::brewer.pal(12, "Paired")
-
-# Which country each trace in a built plotly object belongs to (see the
-# header comment above for why this is read from `name` rather than
-# tracked by construction order). NA for unnamed traces.
-chart_trace_countries <- function(p) {
-    traces <- plotly::plotly_build(p)$x$data
-    vapply(traces, function(tr) {
-        nm <- tr[["name"]]
-        if (is.null(nm)) NA_character_ else nm
-    }, character(1))
-}
 
 chartUI <- function(id, height = "calc(100vh - 105px)") {
     ns <- shiny::NS(id)
@@ -47,18 +34,12 @@ chartUI <- function(id, height = "calc(100vh - 105px)") {
         bslib::card_header(shiny::textOutput(ns("title"))),
         shiny::div(
             style = "position: relative; height: 100%;",
-            shiny::uiOutput(ns("plot_or_placeholder")),
-            shiny::uiOutput(ns("popover"))
+            shiny::uiOutput(ns("plot_or_placeholder"))
         )
     )
 }
 
-# `show_nav` controls whether the click popover's "Go to Country view"
-# button is rendered. The Country view (mod_country.R) embeds this same
-# component in compact mode for its own country, where jumping to
-# "Country view" would just reload the page already being viewed — so it
-# passes `show_nav = FALSE` and ignores the returned reactive entirely.
-chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
+chartServer <- function(id, rwb, var, country) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
@@ -68,14 +49,14 @@ chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
             df_chart(rwb, var(), country())
         })
 
-        # Populated as a side effect of renderPlotly (below): both the
-        # hover and click handlers need this same trace -> country
-        # lookup, and it depends on the plot that was just built, not on
-        # reactive inputs they could recompute independently.
-        trace_countries <- shiny::reactiveVal(character(0))
-
-        # Currently-inspected point, shown in the popover (NULL = hidden)
-        click_info <- shiny::reactiveVal(NULL)
+        # Most recently clicked country (triggers navigation). Stored as
+        # list(country=, nonce=) rather than a bare string: reactiveVal()
+        # skips invalidating dependents when set to a value identical()
+        # to its current one. The nonce (proc.time() elapsed seconds)
+        # ensures two clicks are never identical(), even when the country
+        # name repeats or when a different module already set the same
+        # country into the shared selected_country reactiveVal in app.R.
+        clicked_country_nav <- shiny::reactiveVal(NULL)
 
         output$title <- shiny::renderText({
             shiny::req(length(country()) > 0, data())
@@ -114,7 +95,6 @@ chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
             # plotlyOutput, since Shiny doesn't know to suspend it without
             # a live browser reporting visibility.
             shiny::req(length(country()) > 0, nrow(data()) > 0)
-            click_info(NULL) # new chart -> any open popover no longer applies
 
             # Subset palette to the number of selected countries
             n   <- length(country())
@@ -149,7 +129,10 @@ chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
                     ggplot2::ylab("Rank")
 
                 p_final <- plotly::ggplotly(p, source = ns("plot")) |>
-                    plotly::layout(font = list(size = 18))
+                    plotly::layout(
+                        font = list(size = 18),
+                        dragmode = FALSE
+                    )
             } else {
                 # Sort countries by descending value at max year so the legend
                 # order matches the vertical position of the lines
@@ -180,145 +163,77 @@ chartServer <- function(id, rwb, var, country, show_nav = TRUE) {
                     plotly::layout(
                         font  = list(size = 18),
                         xaxis = list(title = "Year"),
-                        yaxis = list(title = "Score")
+                        yaxis = list(title = "Score"),
+                        dragmode = FALSE
                     )
             }
 
-            trace_countries(chart_trace_countries(p_final))
-
+            # All interactive behavior — click-to-navigate AND
+            # hover-dims-others — is handled client-side via onRender
+            # to avoid plotlyProxy restyle round-trips. The R-side
+            # plotlyProxy approach caused a coerceTraceIndices error
+            # on the very first hover (traces not yet initialized
+            # client-side), and that error killed the same message
+            # batch as the nav_select from a simultaneous click,
+            # silently swallowing the first click's navigation.
+            #
+            # Moving everything to JS eliminates the error entirely
+            # and makes hover-dimming instant (no server round-trip).
             p_final |>
-                plotly::event_register("plotly_hover") |>
-                plotly::event_register("plotly_unhover") |>
-                plotly::event_register("plotly_click")
+                htmlwidgets::onRender(sprintf("
+                    function(el, x) {
+                        var nTraces = el.data.length;
+
+                        // Click-to-navigate — extract the country name
+                        // directly from the trace (trace.name is set to the
+                        // country by plot_ly(color=) / ggplot aes(color=)),
+                        // so we don't need an R-side trace_countries() lookup.
+                        el.on('plotly_click', function(data) {
+                            var pt = data.points[0];
+                            var country = el.data[pt.curveNumber].name || null;
+                            if (country) {
+                                Shiny.setInputValue('%s',
+                                    {country: country},
+                                    {priority: 'event'}
+                                );
+                            }
+                        });
+
+                        // Hover: dim all traces except the hovered one
+                        el.on('plotly_hover', function(data) {
+                            var hovered = data.points[0].curveNumber;
+                            var opacities = [];
+                            for (var i = 0; i < nTraces; i++) {
+                                opacities.push(i === hovered ? 1 : 0.15);
+                            }
+                            Plotly.restyle(el, 'opacity', opacities);
+                        });
+
+                        // Unhover: restore all traces to full opacity
+                        el.on('plotly_unhover', function() {
+                            var opacities = [];
+                            for (var i = 0; i < nTraces; i++) {
+                                opacities.push(1);
+                            }
+                            Plotly.restyle(el, 'opacity', opacities);
+                        });
+                    }
+                ", ns("direct_click")))
         })
 
-        # Hover-dims-others: fade every trace except the hovered country's
-        # via a restyle, so the whole plot doesn't have to re-render.
-        #
-        # event_data() is called from a plain observe() (not
-        # observeEvent()) so it's never evaluated before a chart has
-        # actually rendered: calling event_data() at all schedules a
-        # session$onFlushed() check of whether its `source` was ever
-        # registered via event_register(), and that registration only
-        # happens once renderPlotly() below has run at least once. With
-        # observeEvent() the event_data() call is the trigger expression
-        # itself, so it fires unconditionally the moment the module
-        # server starts — before any countries are selected and thus
-        # before there is a chart to register against — producing a
-        # one-time, but harmless-looking, "source ... is not registered"
-        # warning at startup. Gating on trace_countries() (populated only
-        # once renderPlotly() has actually built a plot) avoids that.
+        # Click-to-navigate: the country name arrives from JS
+        # (el.data[curveNumber].name) as click$country — no R-side
+        # trace lookup needed.
         shiny::observe({
-            shiny::req(length(trace_countries()) > 0)
-            ed <- plotly::event_data("plotly_hover", source = ns("plot"))
-            countries_ <- trace_countries()
-            shiny::req(
-                !is.null(ed$curveNumber),
-                length(countries_) >= ed$curveNumber + 1
-            )
-            hovered <- countries_[ed$curveNumber + 1]
-            shiny::req(!is.na(hovered))
-
-            opacities <- ifelse(countries_ == hovered, 1, 0.15)
-            opacities[is.na(opacities)] <- 0.15
-            plotly::plotlyProxy("plot", session) |>
-                plotly::plotlyProxyInvoke(
-                    "restyle",
-                    list(opacity = as.list(opacities)),
-                    as.list(seq_along(opacities) - 1)
-                )
-        })
-
-        shiny::observe({
-            shiny::req(length(trace_countries()) > 0)
-            plotly::event_data("plotly_unhover", source = ns("plot"))
-            n <- length(trace_countries())
-            plotly::plotlyProxy("plot", session) |>
-                plotly::plotlyProxyInvoke(
-                    "restyle",
-                    list(opacity = as.list(rep(1, n))),
-                    as.list(seq_len(n) - 1)
-                )
-        })
-
-        # Click-to-inspect: clicking a point opens a small popover (flag,
-        # country, year, score/rank) with a "Go to Country view" button —
-        # the same underlying navigation mechanic as the map's
-        # click-to-navigate (mapServer()'s clicked-country reactive). See
-        # the hover observer above for why event_data() is only called
-        # once a chart (and thus trace_countries()) actually exists.
-        shiny::observe({
-            shiny::req(length(trace_countries()) > 0)
-            ed <- plotly::event_data("plotly_click", source = ns("plot"))
-            countries_ <- trace_countries()
-            shiny::req(
-                !is.null(ed$curveNumber),
-                length(countries_) >= ed$curveNumber + 1
-            )
-            clicked_country <- countries_[ed$curveNumber + 1]
-            shiny::req(!is.na(clicked_country))
-
-            row <- data() |>
-                dplyr::filter(country_en == clicked_country, year_n == round(ed$x))
-            shiny::req(nrow(row) > 0)
-            row <- row[1, ]
-
-            click_info(list(
-                country = clicked_country,
-                iso     = row$iso,
-                year    = row$year_n,
-                value   = row[[var()]]
+            click <- input$direct_click
+            shiny::req(click, !is.null(click$country))
+            clicked_country_nav(list(
+                country = click$country,
+                nonce = as.numeric(proc.time()[["elapsed"]])
             ))
         })
 
-        output$popover <- shiny::renderUI({
-            info <- click_info()
-            if (is.null(info)) return(NULL)
-
-            metric_label  <- if (var() == "rank") "Rank" else "Score"
-            value_display <- if (var() == "rank") info$value else round(info$value, 1)
-
-            shiny::div(
-                style = paste(
-                    "position: absolute; top: 12px; right: 12px; z-index: 10;",
-                    "background: white; border: 1px solid #dee2e6; border-radius: 6px;",
-                    "box-shadow: 0 2px 8px rgba(0,0,0,0.15); padding: 10px 12px;",
-                    "min-width: 190px;"
-                ),
-                shiny::div(
-                    style = "display: flex; justify-content: space-between; align-items: center; gap: 0.5em;",
-                    shiny::span(
-                        flag_img_tag(info$iso, alt = info$country, height = "1.1em"),
-                        shiny::strong(info$country)
-                    ),
-                    shiny::actionLink(
-                        ns("close_popover"), shiny::icon("times"),
-                        style = "color: #6c757d;"
-                    )
-                ),
-                shiny::div(
-                    style = "font-size: 0.9rem; margin-top: 4px;",
-                    paste0(info$year, " \u00b7 ", metric_label, ": ", value_display)
-                ),
-                if (show_nav) {
-                    shiny::actionButton(
-                        ns("go_to_country"), "Go to Country view \u2192",
-                        class = "btn-sm btn-outline-primary w-100 mt-2"
-                    )
-                }
-            )
-        })
-
-        shiny::observeEvent(input$close_popover, click_info(NULL))
-
-        go_to_country <- shiny::reactiveVal(NULL)
-        shiny::observeEvent(input$go_to_country, {
-            shiny::req(click_info())
-            go_to_country(click_info()$country)
-            click_info(NULL)
-        })
-
-        shiny::reactive(go_to_country())
+        shiny::reactive(clicked_country_nav())
     })
 }
 

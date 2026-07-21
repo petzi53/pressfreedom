@@ -111,6 +111,15 @@ ui <- bslib::page_navbar(
             }).observe(el);
           }
           observeCountryProbe();
+
+          // --- 3. Force Plotly resize when a tab becomes shown ---
+          // Plotly widgets rendered while their tab is hidden can
+          // have stale zero-size layouts. A window resize after
+          // the tab becomes visible triggers Plotly's responsive
+          // layout recalculation.
+          document.addEventListener('shown.bs.tab', function() {
+            window.dispatchEvent(new Event('resize'));
+          });
         })();
       ")),
       shiny::tags$style("
@@ -199,11 +208,19 @@ server <- function(input, output, session) {
     })
 
     # Shared "selected country" reactive: both the Map's click-to-navigate
-    # (mapServer()'s returned reactive) and Trends' click-to-inspect
-    # popover (chartServer()'s returned reactive) feed into this single
+    # (mapServer()'s returned reactive) and Trends' click-to-navigate
+    # (chartServer()'s returned reactive) feed into this single
     # reactiveVal. One observer downstream does the actual navigation +
     # selection, so that logic exists in exactly one place regardless of
     # which view triggered it.
+    #
+    # Both source reactives return list(country=, nonce=), not a bare
+    # string: reactiveVal() (this one, and each source module's own
+    # internal one) skips invalidating dependents when set to a value
+    # identical() to its current one. Without a nonce, re-clicking the
+    # country already active in the Country view would be silently
+    # swallowed at every reactiveVal hop in the chain and never navigate.
+    # See mod_map.R / mod_chart.R for where the nonce originates.
     selected_country <- shiny::reactiveVal(NULL)
 
     # mapServer() returns a reactive holding the most recently clicked
@@ -215,11 +232,14 @@ server <- function(input, output, session) {
     })
 
     # Inputs module returns list(var, country) as reactives
-    sel <- inputsServer("inputs", selected_country = selected_country)
+    sel <- inputsServer("inputs", selected_country = shiny::reactive({
+        shiny::req(selected_country())
+        selected_country()$country
+    }))
 
     # Chart module receives those reactives and the raw data, and returns
-    # a reactive holding the country confirmed via its click popover's
-    # "Go to Country view" button (or NULL).
+    # a reactive holding the country most recently clicked on a chart point
+    # (or NULL).
     chart_click <- chartServer("chart", rwb, sel$var, sel$country)
     shiny::observeEvent(chart_click(), {
         shiny::req(chart_click())
@@ -227,11 +247,16 @@ server <- function(input, output, session) {
     })
 
     # The one place a click from either view actually navigates: switch
-    # to the Country tab and preselect the clicked country there.
+    # to the Country tab and preselect the clicked country there. The
+    # nonce in selected_country() (see comment above) ensures this fires
+    # even when the same country is clicked again in a row.
     shiny::observeEvent(selected_country(), {
         shiny::req(selected_country())
         bslib::nav_select("view", "Country")
-        shiny::updateSelectInput(session, "country-country", selected = selected_country())
+        shiny::updateSelectInput(
+            session, "country-country",
+            selected = selected_country()$country
+        )
     })
 
     # Capture the Country module's selected country reactive so we can
