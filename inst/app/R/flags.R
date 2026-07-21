@@ -89,7 +89,9 @@ flag_img_tag <- function(iso3, alt = iso3, height = "1em") {
   shiny::tags$img(
     src = paste0("flags/", code, ".png"),
     alt = alt,
-    height = height,
-    style = "vertical-align: middle; margin-right: 0.3em;"
+    style = paste0(
+      "height: ", height, "; width: auto; ",
+      "vertical-align: middle; margin-right: 0.3em;"
+    )
   )
 }

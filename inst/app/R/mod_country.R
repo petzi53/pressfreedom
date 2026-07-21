@@ -236,8 +236,9 @@ countryServer <- function(id, rwb) {
         output$country_header <- shiny::renderUI({
             shiny::req(selected(), selected() != "")
             row <- country_data()[1, ]
+            flag <- flag_img_tag(row$iso, alt = selected(), height = "1.1em")
             shiny::tags$h3(
-                flag_img_tag(row$iso, alt = selected(), height = "1.1em"),
+                flag,
                 selected(),
                 class = "mb-0"
             )
