@@ -329,7 +329,7 @@ mapServer <- function(id, rwb, reset = NULL) {
             text = ~hovertext,
             hovertemplate = "%{text}<extra></extra>",
             showlegend = FALSE,
-            marker = list(line = list(width = 0.5, color = "rgb(180, 180, 180)"))
+            marker = list(line = list(width = 0.5, color = "white"))
           )
       }
 
