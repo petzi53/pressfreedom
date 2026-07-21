@@ -38,10 +38,22 @@ inputsUI <- function(id, rwb) {
     )
 }
 
-inputsServer <- function(id) {
+inputsServer <- function(id, selected_country = NULL) {
     shiny::moduleServer(id, function(input, output, session) {
         shiny::observeEvent(input$clear, {
             shiny::updateSelectInput(session, "country", selected = character(0))
+        })
+
+        # When selected_country changes (from a click in another view),
+        # add it to the Trends country selection if not already present
+        shiny::observeEvent(selected_country(), {
+            shiny::req(selected_country())
+            current_selection <- input$country
+            new_country <- selected_country()
+            if (!new_country %in% current_selection) {
+                updated_selection <- c(current_selection, new_country)
+                shiny::updateSelectInput(session, "country", selected = updated_selection)
+            }
         })
 
         # Return inputs as reactives

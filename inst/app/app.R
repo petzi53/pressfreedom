@@ -215,7 +215,7 @@ server <- function(input, output, session) {
     })
 
     # Inputs module returns list(var, country) as reactives
-    sel <- inputsServer("inputs")
+    sel <- inputsServer("inputs", selected_country = selected_country)
 
     # Chart module receives those reactives and the raw data, and returns
     # a reactive holding the country confirmed via its click popover's
@@ -234,7 +234,21 @@ server <- function(input, output, session) {
         shiny::updateSelectInput(session, "country-country", selected = selected_country())
     })
 
-    countryServer("country", rwb)
+    # Capture the Country module's selected country reactive so we can
+    # add it to Trends when the user selects a country in the Country view
+    country_selected <- countryServer("country", rwb)
+    shiny::observeEvent(country_selected(), {
+        # Only add to Trends if a country is actually selected (non-empty string)
+        if (country_selected() != "") {
+            current_trends_selection <- sel$country()
+            new_country <- country_selected()
+            # Add the country if not already selected in Trends
+            if (!new_country %in% current_trends_selection) {
+                updated_selection <- c(current_trends_selection, new_country)
+                shiny::updateSelectInput(session, "inputs-country", selected = updated_selection)
+            }
+        }
+    })
 }
 
 shiny::shinyApp(ui, server)

@@ -825,5 +825,9 @@ countryServer <- function(id, rwb) {
 
             widget
         })
+
+        # Return the selected country reactive so other views can access it
+        # (e.g., to add it to the Trends chart when navigating away)
+        selected
     })
 }
