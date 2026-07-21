@@ -97,7 +97,7 @@ These zones appear **only in 2022** and do not align with the historical classif
 The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar()` with a single `id = "view"` navset switching between three `nav_panel()`s wired in `app.R`: **Map**, **Trends**, **Country**. `page_navbar()`'s installed version (0.11.0) has no per-`nav_panel()` `sidebar =` argument — only one page-level `sidebar =`, shared across all panels — so per-view sidebar *content* is achieved with a `navset_hidden(id = "sidebar_view")` inside that single sidebar, kept in sync with the visible navbar tabs via a `nav_select("sidebar_view", input$view)` observer in the server.
 
 - **`mod_map`** — choropleth (`plotly::plot_geo()`) colored by Score, Rank, or a 2022+ dimension. Year choices react to both `zone` and `metric` (dimensions restrict to 2022+, score to 2013+). Score-like metrics use RSF's real 5-class band classification; Rank uses percentile tiers — both exposed as independent `checkboxGroupInput` toggles that grey out (not remove) unchecked bands. See "Map score/rank bands" below.
-- **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. Hovering a line dims the others (`plotlyProxy` restyle); clicking a point opens a popover with a "Go to Country view" button.
+- **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. All interactive behavior (hover-dimming and click-to-navigate) is handled client-side via JavaScript (`onRender`) — see "Client-side JavaScript approach for chart interactivity" below for why and how.
 - **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2025) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
 - **`mod_inputs`** (Trends sidebar) — `selectInput`s for variable (Score/Rank only — dimensions intentionally excluded, see below) and country (multiple selection).
 - **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header.
@@ -107,7 +107,49 @@ The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar(
 
 ### Shared navigation
 
-Both the Map's click-to-navigate and Trends' click-to-inspect popover ("Go to Country view") feed into a single `selected_country` reactiveVal in `app.R`, rather than each view running its own copy of the navigation logic. One observer downstream does the actual work: `nav_select("view", "Country")` (which also drives the sidebar's `navset_hidden` via the sync observer above) and preselect the clicked country there. If you add a third click-to-navigate entry point, feed it into `selected_country` too rather than duplicating that observer.
+Both the Map's click-to-navigate and Trends' click-to-chart point click feed into a single `selected_country` reactiveVal in `app.R`, rather than each view running its own copy of the navigation logic. One observer downstream does the actual work: `nav_select("view", "Country")` (which also drives the sidebar's `navset_hidden` via the sync observer above) and preselect the clicked country there. If you add a third click-to-navigate entry point, feed it into `selected_country` too rather than duplicating that observer.
+
+#### Nonce collision pitfall: identical values silently skip `reactiveVal` observers
+
+Both the Map and Trends modules return `list(country = ..., nonce = ...)` to the app-level `selected_country` reactiveVal. The nonce is **critical** — `reactiveVal` silently skips calling observers when assigned an `identical()` value to its current one.
+
+**Before the fix (module-local integer counters):** Each module used `click_nonce <- 0` and incremented by 1 on each click. Clicking the same country on the map (`nonce = 1`) and then on the chart (`nonce = 1`) produced `identical()` values:
+```r
+# map click
+selected_country(list(country = "Algeria", nonce = 1))
+
+# chart click on same country
+selected_country(list(country = "Algeria", nonce = 1))  # identical(), observer skipped
+```
+
+This silently broke navigation on the first chart click in a session (before any second clicks could increment the chart nonce beyond 1).
+
+**Fix:** Use `as.numeric(proc.time()[["elapsed"]])` instead of integer counters. The elapsed seconds since R process startup are globally unique across modules and re-executions:
+```r
+# map click
+selected_country(list(country = "Algeria", nonce = 12345.678))
+
+# chart click on same country
+selected_country(list(country = "Algeria", nonce = 12345.789))  # not identical(), observer fires
+```
+
+Apply this pattern in any new module that feeds into `selected_country` or any other `reactiveVal` that needs to distinguish repeated values.
+
+#### Client-side JavaScript approach for chart interactivity
+
+All interactive behavior on the Trends chart (both click-to-navigate and hover-dimming) is now handled entirely **client-side** via JavaScript (`htmlwidgets::onRender`), rather than R-side plotly event handlers and `plotlyProxy` restyle commands.
+
+**Why:** Early attempts used R-side `plotlyProxy()` restyle on hover to dim non-hovered traces. On the very first hover (before client-side plotly traces were fully initialized), this triggered a `coerceTraceIndices` error in plotly's JavaScript. The error ran in the same Shiny message batch as the navigation `nav_select()` triggered by a simultaneous click, and the error **aborted the entire message batch**, silently swallowing the navigation command.
+
+**Current implementation:** In `mod_chart.R`'s `renderPlotly`, the `onRender` callback installs three event listeners:
+
+1. **Click-to-navigate:** Extracts the country name directly from the clicked trace (`el.data[curveNumber].name`, set by `plot_ly(color=)` or `ggplot aes(color=)`), and calls `Shiny.setInputValue()` with `priority = 'event'` to ensure every click fires.
+
+2. **Hover-dimming:** Extracts the hovered `curveNumber`, loops through all traces, and sets opacities to 1 for the hovered trace and 0.15 for all others via `Plotly.restyle()` — instant, no server round-trip.
+
+3. **Unhover:** Restores all traces to full opacity.
+
+This design eliminates the timing issue and makes hover-dimming snappier. Do **not** revert to `plotlyProxy` restyle in `observeEvent(event_data("plotly_hover", ...))` — the `coerceTraceIndices` error will return.
 
 ## Map score/rank bands
 
