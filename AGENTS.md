@@ -62,6 +62,20 @@ Dimension scores (`political_context` etc.) are only available for 2022+. See "D
 
 ### Known Data Issues
 
+**Country Name Inconsistency: Russia vs. Russian Federation (2023–2025)** — RWB changed the country name from "Russian Federation" (used in 2002–2022) to "Russia" (used in 2023–2025). This is inconsistent with the historical convention.
+
+**Upstream Resolution (rwb-book)**: In the data cleaning pipeline (`031-consolidate.qmd` or equivalent), add a `case_when()` rule to normalize:
+```r
+country_en = case_when(
+  year_n >= 2023 & country_en == "Russia" ~ "Russian Federation",
+  TRUE ~ country_en
+)
+```
+
+**Package-Level Resolution (pressfreedom)**: Applied in `data-raw/rwb.R` immediately after loading the raw data from rwb-book — 2023–2025 entries with `country_en == "Russia"` are automatically converted to "Russian Federation" during package build, ensuring the entire dataset uses the historical name consistently across all 24 years.
+
+---
+
 **2022 Zone Classification Anomaly** — In 2022, RWB used two non-standard geographic zones:
 - "Europe - Asie centrale" (53 countries)
 - "Maghreb - Moyen-Orient" (19 countries)

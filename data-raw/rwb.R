@@ -34,6 +34,16 @@ rwb <- rwb |>
     iso = as.character(iso)
   )
 
+# COUNTRY NAME CORRECTION: Normalize country names for consistency.
+# - 2023–2025: "Russia" → "Russian Federation" (for consistency with 2002–2022)
+rwb <- rwb |>
+  dplyr::mutate(
+    country_en = dplyr::case_when(
+      year_n >= 2023 & country_en == "Russia" ~ "Russian Federation",
+      TRUE ~ country_en
+    )
+  )
+
 # 2022 ZONE CORRECTION: In 2022, RWB used non-standard zone classifications
 # ("Europe - Asie centrale" and "Maghreb - Moyen-Orient"). These appear only in 2022
 # and do not align with historical classifications used in all other years.
