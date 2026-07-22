@@ -234,9 +234,48 @@ mapServer <- function(id, rwb, reset = NULL) {
           choiceNames = band_choice_names(levels_, labels_, colors_),
           choiceValues = levels_,
           selected = levels_
+        ),
+        # Toggle-style checkbox: checking it clears every band/tier;
+        # unchecking it restores all of them. Kept out of the
+        # checkboxGroupInput itself (it isn't a band/tier of its own).
+        shiny::checkboxInput(
+          ns("deselect_all"),
+          label = "Deselect all",
+          value = FALSE
         )
       )
     })
+
+    # Wire the "Deselect all" toggle to the band checkboxes. ignoreInit
+    # avoids clearing bands on first render, and the levels_ used here
+    # must match whichever set (rank tiers vs score bands) is currently
+    # displayed.
+    shiny::observeEvent(input$deselect_all, {
+      is_rank <- identical(input$metric, "rank")
+      levels_ <- if (is_rank) rank_tier_levels else rsf_band_levels
+      shiny::updateCheckboxGroupInput(
+        session, "bands",
+        selected = if (input$deselect_all) character(0) else levels_
+      )
+    }, ignoreInit = TRUE)
+
+    # Track the "actually checked" set separately from input$bands.
+    # checkboxGroupInput reports NULL both (a) before it has ever been
+    # rendered, and (b) once the user has unchecked every box — those two
+    # cases are indistinguishable from input$bands alone. The render code
+    # below used to paper over this with `if (is.null(checked)) checked <-
+    # levels_`, which fixed case (a) but silently treated case (b) as "show
+    # everything" too, so unchecking all boxes had no visible effect.
+    #
+    # Fix: initialise to the full default set (matching the initial
+    # checkboxGroupInput's selected=levels_) so case (a) still renders
+    # correctly, then let every subsequent input$bands change --
+    # including a change to NULL from unchecking the last box, captured via
+    # ignoreNULL = FALSE -- overwrite it verbatim, so case (b) sticks.
+    checked_bands <- shiny::reactiveVal(rsf_band_levels)
+    shiny::observeEvent(input$bands, {
+      checked_bands(input$bands)
+    }, ignoreNULL = FALSE)
 
     # Filtered data: year + zone, with every row classified into a band
     # regardless of checkbox state (unchecked bands are greyed out at
@@ -279,8 +318,8 @@ mapServer <- function(id, rwb, reset = NULL) {
       is_rank <- metric == "rank"
       levels_ <- if (is_rank) rank_tier_levels else rsf_band_levels
       colors_ <- if (is_rank) rank_tier_colors else rsf_band_colors
-      checked <- input$bands
-      if (is.null(checked)) checked <- levels_
+      checked <- checked_bands()
+      if (is.null(checked)) checked <- character(0)
 
       # Dimension scores are only available from 2022 onward; substitute
       # one explanatory line instead of five "-" placeholders pre-2022.
