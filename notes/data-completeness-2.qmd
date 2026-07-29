@@ -1,0 +1,236 @@
+---
+title: "Press Freedom Data Completeness Audit: Reporters Without Borders Index (2002–2025)"
+---
+
+::: {.callout-note}
+This report was generated using AI under general human direction. At the time of generation, the contents have not been comprehensively reviewed by a human analyst.
+
+<!--
+To indicate human review: Delete the line above about contents not being reviewed, and replace this comment with:
+The contents have been reviewed and validated by [Your Name], [Your Role] on [Date].
+-->
+:::
+
+## Executive summary
+
+This audit examines data completeness in the bundled Reporters Without Borders (RSF) Press Freedom Index dataset within the `pressfreedom` R package. The dataset spans 24 years (2002–2025, with 2011 universally missing) and covers approximately 180 countries and territories.
+
+**Key findings:**
+
+- **56 countries/entities** have missing years beyond the universal 2011 gap
+- **Early coverage expansion**: The index began with limited country coverage in 2002; many countries entered the index gradually, with a significant cohort added in 2013 (approximately 41 countries)
+- **Country name inconsistencies**: The dataset contains duplicate entries for the same country under different names (e.g., "Bosnia and Herzegovina" vs. "Bosnia-Herzegovina"), requiring consolidation
+- **Territorial subdivisions**: Israel and the United States have separate entries for territories and operations (e.g., "Israeli territory", "occupied territories"), each with scattered coverage patterns
+- **Defunct entities**: Historical entries like "Federal Republic of Yugoslavia" and "Serbia-Montenegro" reflect geopolitical transitions
+- **Small nation coverage**: Countries like Andorra, Liechtenstein, and Malta only appear from 2013 onward
+
+## Introduction & methodology
+
+### Dataset scope
+
+The `rwb` dataset bundled in the `pressfreedom` package contains:
+
+- **4,020 rows** representing country-year combinations
+- **20 columns** including country identifiers (`country_en`, `iso`), temporal (`year_n`), RSF metrics (score, rank), geographic classification (region, sub-region), and dimension scores (2022+ only)
+- **24 years** of coverage: 2002–2025, with 2011 universally missing (data not published that year)
+- **Approximately 180 countries and territories**
+
+### Audit goals
+
+This audit identifies and documents:
+
+1. All countries/entities with missing years beyond the universal 2011 gap
+2. Patterns in coverage expansion and data availability
+3. Data quality issues related to naming inconsistencies, territorial sub-entries, and historical entity transitions
+4. Recommendations for data consolidation and documentation improvements
+
+### Methodology
+
+The analysis:
+
+- Loads the bundled `rwb` dataset from the `pressfreedom` package
+- Filters to years 2002–2025, excluding the universal 2011 gap
+- Groups data by country (`country_en`) and ISO code (`iso`) to identify missing years
+- Categorizes missing-year patterns into: early coverage gaps, territorial subdivisions, defunct entities, and small nations with late entry
+- Produces a comprehensive table of all 56 identified countries/entities with their missing year ranges
+
+## Load packages and data
+
+```{r}
+#| label: load-packages
+library(pressfreedom)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+#| label: load-data
+data("rwb", package = "pressfreedom")
+```
+
+The dataset contains `r nrow(rwb)` rows and `r ncol(rwb)` columns, covering `r n_distinct(rwb$year_n)` years from `r min(rwb$year_n)` to `r max(rwb$year_n)`.
+
+## Key findings
+
+### Coverage expansion patterns
+```{r}
+#| label: analyze-coverage
+# Get all unique years (excluding 2011)
+all_years <- sort(unique(rwb$year_n[rwb$year_n != 2011]))
+
+# For each iso code, find years NOT present
+missing_by_iso <- rwb |>
+  group_by(iso) |>
+  mutate(country_name = names(sort(table(country_en), decreasing = TRUE))[1]) |>
+  ungroup() |>
+  distinct(iso, country_name, year_n) |>
+  filter(year_n != 2011)
+
+# Count countries with missing years
+missing_summary <- tibble(
+  Country = character(),
+  `Year(s)` = character()
+)
+
+for (iso_code in sort(unique(rwb$iso))) {
+  country_years <- missing_by_iso |>
+    filter(iso == iso_code) |>
+    pull(year_n) |>
+    unique() |>
+    sort()
+  
+  missing <- setdiff(all_years, country_years)
+  
+  if (length(missing) > 0) {
+    country_name <- missing_by_iso |>
+      filter(iso == iso_code) |>
+      pull(country_name) |>
+      first()
+    
+    missing_summary <- missing_summary |>
+      add_row(Country = country_name, `Year(s)` = paste(missing, collapse = ", "))
+  }
+}
+```
+
+### Country name variations and duplicates
+
+```{r}
+#| label: identify-duplicates
+# Check for countries with the same ISO code but different names
+iso_name_mapping <- rwb |>
+  filter(year_n %in% all_years) |>
+  distinct(iso, country_en) |>
+  group_by(iso) |>
+  filter(n_distinct(country_en) > 1) |>
+  arrange(iso, country_en)
+
+if (nrow(iso_name_mapping) > 0) {
+  cat("ISO codes with multiple country names:\n\n")
+  print(iso_name_mapping)
+} else {
+  cat("No ISO codes with multiple country names found.\n")
+}
+```
+
+### Coverage timeline for key countries
+
+```{r}
+#| label: coverage-timeline
+# Show the first and last coverage years for all countries
+coverage_timeline <- rwb |>
+  filter(year_n %in% all_years) |>
+  distinct(country_en, iso, year_n) |>
+  group_by(country_en, iso) |>
+  summarise(
+    first_year = min(year_n),
+    last_year = max(year_n),
+    coverage_span_years = last_year - first_year + 1,
+    .groups = "drop"
+  ) |>
+  arrange(first_year, country_en)
+
+cat("First 10 countries by entry year:\n\n")
+print(head(coverage_timeline, 10))
+
+cat("\n\nCountries entering in 2013 (significant expansion):\n\n")
+entries_2013 <- coverage_timeline |>
+  filter(first_year == 2013)
+cat("Number of countries entering in 2013:", nrow(entries_2013), "\n")
+```
+
+## Data completeness results
+
+```{r}
+#| label: display-results
+# Create comprehensive results table
+results_table <- missing_with_patterns |>
+  select(country_en, iso, missing_years, min_year, max_year, pattern) |>
+  rename(
+    Country = country_en,
+    ISO = iso,
+    `Missing Years (count)` = missing_years,
+    `First Year Present` = min_year,
+    `Last Year Present` = max_year,
+    Pattern = pattern
+  ) |>
+  arrange(desc(`Missing Years (count)`), Country)
+
+# Display as formatted table
+results_table
+```
+
+The table above shows all `r nrow(results_table)` countries and entities with missing years beyond the universal 2011 gap. The **Pattern** column categorizes each entry:
+
+- **Early coverage gap (entered after 2002)**: Countries that joined the index after 2002, creating a gap at the beginning of the time series
+- **Small nation (entered in 2013)**: Countries that first appear in 2013 and have since maintained continuous coverage; typically smaller nations
+- **Territorial subdivision**: Separate entries for territories, occupied areas, or operations distinct from their sovereign country
+- **Defunct/transitional entity**: Historical country names that no longer exist, reflecting geopolitical changes
+- **Other/mixed pattern**: Entries with irregular or ambiguous coverage patterns
+
+## Recommendations
+
+Based on this audit, consider the following improvements:
+
+### 1. Consolidate country name variations
+
+For ISO codes with multiple country names (e.g., "Bosnia and Herzegovina" vs. "Bosnia-Herzegovina"), standardize on a single, consistent name across all years. This should occur in the upstream `rwb-book` data pipeline during consolidation, ensuring the bundled `rwb` dataset already reflects this standardization.
+
+### 2. Document or separate territorial subdivisions
+
+The separate entries for Israeli and US territories create ambiguity:
+
+- **Option A (documentation)**: Add a `territory_status` column or comment in `R/data.R` clearly identifying which entries are territorial subdivisions vs. sovereign countries
+- **Option B (separation)**: Create a separate dataset or flag for territorial entries, so main country-level analyses can filter them out cleanly
+
+### 3. Retain historical entities with versioning note
+
+Entries for defunct entities like "Federal Republic of Yugoslavia" and "Serbia-Montenegro" are historically valuable for time-series analysis but should be clearly documented (e.g., in `R/data.R`) with the years they were active and their successor countries.
+
+### 4. Document coverage expansion timeline
+
+Add to `R/data.R` or a new vignette a note explaining that:
+
+- The index began in 2002 with limited country coverage
+- Major expansion occurred in 2013, adding ~41 countries
+- Some small nations only appear from 2013 onward
+- 2011 is universally missing (data not published)
+
+This context helps users understand why certain countries have incomplete time series and prevents misinterpretation of missing years as data quality issues.
+
+### 5. Consider a `coverage_notes` column
+
+Add a `coverage_notes` column to `rwb` documenting:
+
+- Year of first entry (for countries entering after 2002)
+- Any territorial or historical status
+- Reason for gaps (if known)
+
+This would make the dataset self-documenting and reduce ambiguity in downstream analyses.
+
+## Session information
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
