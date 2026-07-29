@@ -2,15 +2,16 @@
 #'
 #' Annual press freedom scores and rankings for countries worldwide,
 #' compiled from the Reporters Without Borders (RSF / Reporters Sans Frontières)
-#' World Press Freedom Index. Data span 2002–2025 (no data for 2011), covering
-#' up to 191 countries per year.
+#' World Press Freedom Index. Data span 2002–2026 (no data for 2011), covering
+#' 191 countries per year.
 #'
 #' The overall score reflects the degree of freedom available to journalists,
 #' assessed across five thematic indicators. Scores range from 0 (worst) to
-#' 100 (best). The full acquisition and cleaning pipeline is documented in the
-#' companion \emph{rwb-book} Quarto book.
+#' 100 (best). Country names are standardized to official nomenclature (e.g.,
+#' Czechia, Turkish Republic, Russian Federation). The full acquisition and
+#' cleaning pipeline is documented in the \emph{pressfreedom.data} package.
 #'
-#' @format A tibble with 4,020 rows and 20 variables:
+#' @format A tibble with 4,192 rows and 20 variables:
 #' \describe{
 #'   \item{year_n}{Integer year of the index edition.}
 #'   \item{iso}{ISO 3166-1 alpha-3 country code (character).}
@@ -27,7 +28,7 @@
 #'   \item{rank_soc}{Rank on the social context indicator.}
 #'   \item{safety}{Score for the safety indicator (0–100).}
 #'   \item{rank_saf}{Rank on the safety indicator.}
-#'   \item{zone}{RSF geographic zone (factor; labels in French as published by RSF).}
+#'   \item{zone}{RSF geographic zone (character; labels in French as published by RSF).}
 #'   \item{rank_n_1}{Overall rank in the previous year's edition.}
 #'   \item{rank_evolution}{Change in overall rank vs. previous year (positive = improved).}
 #'   \item{score_n_1}{Overall score in the previous year's edition.}
@@ -35,6 +36,7 @@
 #' }
 #'
 #' @source Reporters Without Borders (RSF) World Press Freedom Index,
-#'   \url{https://rsf.org/en/index}. Cleaned via the rwb-book pipeline;
+#'   \url{https://rsf.org/en/index}. Cleaned and standardized via the
+#'   \emph{pressfreedom.data} package (Phase A–D pipeline);
 #'   see \code{data-raw/rwb.R} for details.
 "rwb"

@@ -1,6 +1,6 @@
 Package: pressfreedom
 Title: Press Freedom Dashboard
-Version: 0.0.0.9001
+Version: 0.1.0
 Authors@R: 
     person("Peter", "Baumgartner", , "petzi53@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-4526-8791"))
@@ -15,6 +15,7 @@ RoxygenNote: 8.0.0
 Depends: 
     R (>= 3.5)
 Imports:
+    pressfreedom.data (>= 0.1.0),
     shiny
 Suggests:
     bslib,
