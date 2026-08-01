@@ -11,7 +11,7 @@
 #' Czechia, Turkish Republic, Russian Federation). The full acquisition and
 #' cleaning pipeline is documented in the \emph{pressfreedom.data} package.
 #'
-#' @format A tibble with 4,192 rows and 20 variables:
+#' @format A tibble with 4,183 rows and 20 variables:
 #' \describe{
 #'   \item{year_n}{Integer year of the index edition.}
 #'   \item{iso}{ISO 3166-1 alpha-3 country code (character).}
@@ -28,7 +28,9 @@
 #'   \item{rank_soc}{Rank on the social context indicator.}
 #'   \item{safety}{Score for the safety indicator (0–100).}
 #'   \item{rank_saf}{Rank on the safety indicator.}
-#'   \item{zone}{RSF geographic zone (character; labels in French as published by RSF).}
+#'   \item{zone}{RSF geographic zone (character; English labels: "Africa", "Americas",
+#'     "Asia-Pacific", "Eastern Europe & Central Asia", "Middle East & North Africa",
+#'     "EU & Balkans").}
 #'   \item{rank_n_1}{Overall rank in the previous year's edition.}
 #'   \item{rank_evolution}{Change in overall rank vs. previous year (positive = improved).}
 #'   \item{score_n_1}{Overall score in the previous year's edition.}

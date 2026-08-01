@@ -7,7 +7,11 @@
 #' @param var   Column name to select ("score" or "rank").
 #' @param country Character vector of country names to include.
 df_chart <- function(df, var, country) {
+    # RSF changed its scoring methodology in 2013; pre-2013 scores use a different
+    # non-comparable scale, so restrict score charts to the comparable era only
+    min_year <- if (var == "score") 2013L else 1L
     df |>
+        dplyr::filter(year_n >= min_year) |>
         dplyr::select(year_n, dplyr::all_of(var), country_en, iso) |>
         dplyr::filter(country_en %in% country) |>
         dplyr::arrange(year_n) |>

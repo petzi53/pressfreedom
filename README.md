@@ -194,6 +194,12 @@ Found a bug? Have a feature request? Please open an issue:
 
 MIT License. See [LICENSE](LICENSE) for details.
 
+## Credits
+
+The hex logo's microphone icon is from Flaticon:
+
+<a href="https://www.flaticon.com/free-icons/microphone" title="microphone icons">Microphone icons created by Magnific - Flaticon</a>
+
 ## Author
 
 **Peter Baumgartner**
