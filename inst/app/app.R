@@ -15,8 +15,8 @@ library(ggplot2)
 # Source all module and helper files from R/
 invisible(lapply(list.files("R", full.names = TRUE, pattern = "\\.R$"), source))
 
-# Use the dataset bundled with the package
-rwb <- pressfreedom::rwb
+# Load authoritative dataset from pressfreedom.data
+rwb_standardized <- pressfreedom.data::rwb_standardized
 
 # flagon installs flag images on disk rather than as package data; serve
 # them under /flags so <img src="flags/xx.png"> works anywhere in the app
@@ -59,9 +59,9 @@ ui <- bslib::page_navbar(
         open = list(desktop = "open", mobile = "closed"),
         bslib::navset_hidden(
             id = "sidebar_view",
-            bslib::nav_panel_hidden("Map",    mapSidebarUI("map", rwb)),
-            bslib::nav_panel_hidden("Trends", compareSidebarUI("inputs", rwb)),
-            bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb))
+            bslib::nav_panel_hidden("Map",    mapSidebarUI("map", rwb_standardized)),
+            bslib::nav_panel_hidden("Trends", compareSidebarUI("inputs", rwb_standardized)),
+            bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb_standardized))
         )
     ),
     bslib::nav_panel("Map",    mapMainUI("map")),
@@ -225,7 +225,7 @@ server <- function(input, output, session) {
 
     # mapServer() returns a reactive holding the most recently clicked
     # country (or NULL).
-    map_click <- mapServer("map", rwb, reset = reset_trigger)
+    map_click <- mapServer("map", rwb_standardized, reset = reset_trigger)
     shiny::observeEvent(map_click(), {
         shiny::req(map_click())
         selected_country(map_click())
@@ -240,7 +240,7 @@ server <- function(input, output, session) {
     # Chart module receives those reactives and the raw data, and returns
     # a reactive holding the country most recently clicked on a chart point
     # (or NULL).
-    chart_click <- chartServer("chart", rwb, sel$var, sel$country)
+    chart_click <- chartServer("chart", rwb_standardized, sel$var, sel$country)
     shiny::observeEvent(chart_click(), {
         shiny::req(chart_click())
         selected_country(chart_click())
@@ -261,7 +261,7 @@ server <- function(input, output, session) {
 
     # Capture the Country module's selected country reactive so we can
     # add it to Trends when the user selects a country in the Country view
-    country_selected <- countryServer("country", rwb)
+    country_selected <- countryServer("country", rwb_standardized)
     shiny::observeEvent(country_selected(), {
         # Only add to Trends if a country is actually selected (non-empty string)
         if (country_selected() != "") {

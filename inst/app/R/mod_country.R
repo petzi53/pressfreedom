@@ -153,13 +153,13 @@ no_data_msg <- function(msg) {
   shiny::p(msg, style = "color: #6c757d; font-size: 0.9rem; margin: 0.5rem 0;")
 }
 
-countrySidebarUI <- function(id, rwb) {
+countrySidebarUI <- function(id, rwb_standardized) {
     ns <- shiny::NS(id)
     shiny::tagList(
         shiny::selectInput(
             ns("country"),
             label = "Select country",
-            choices = c("Select a country..." = "", sort(unique(rwb$country_en))),
+            choices = c("Select a country..." = "", sort(unique(rwb_standardized$country_en))),
             selected = ""
         ),
         shiny::actionButton(
@@ -198,7 +198,7 @@ countryMainUI <- function(id) {
     )
 }
 
-countryServer <- function(id, rwb) {
+countryServer <- function(id, rwb_standardized) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
@@ -228,7 +228,7 @@ countryServer <- function(id, rwb) {
         # filter further from.
         country_data <- shiny::reactive({
             shiny::req(selected(), selected() != "")
-            rwb |>
+            rwb_standardized |>
                 dplyr::filter(country_en == selected()) |>
                 dplyr::arrange(year_n)
         })
@@ -426,7 +426,7 @@ countryServer <- function(id, rwb) {
         # single global max).
         rank_tier_data <- shiny::reactive({
             d <- country_data() |> dplyr::filter(!is.na(rank))
-            max_ranks <- rwb |>
+            max_ranks <- rwb_standardized |>
                 dplyr::group_by(year_n) |>
                 dplyr::summarise(max_rank = max(rank, na.rm = TRUE), .groups = "drop")
             counts <- d |>
@@ -519,7 +519,7 @@ countryServer <- function(id, rwb) {
         #     plus 5 thin dimension lines (2022-2025 only, naturally,
         #     since that's all the data that exists for them).
         #   Rank panel: black Rank bump line (~2003-2025), plus 5 thin
-        #     dimension-rank bump lines (rank_pol etc., already in rwb
+        #     dimension-rank bump lines (rank_pol etc., already in rwb_standardized
         #     — no need to recompute), built with ggplot2 + ggbump and
         #     converted via ggplotly() (same technique as mod_chart.R's
         #     Rank bump chart).

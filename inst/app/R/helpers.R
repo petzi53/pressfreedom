@@ -3,7 +3,7 @@
 
 #' Filter and prepare data for a chart
 #'
-#' @param df    The full rwb data frame.
+#' @param df    The full rwb_standardized data frame.
 #' @param var   Column name to select ("score" or "rank").
 #' @param country Character vector of country names to include.
 df_chart <- function(df, var, country) {

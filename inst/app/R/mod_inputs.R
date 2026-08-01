@@ -11,7 +11,7 @@
 ## single-year map-coloring options and, per-country, as a short 2022-25
 ## trend in the Country view).
 
-inputsUI <- function(id, rwb) {
+inputsUI <- function(id, rwb_standardized) {
     ns <- shiny::NS(id)
     shiny::tagList(
         shiny::selectInput(
@@ -25,7 +25,7 @@ inputsUI <- function(id, rwb) {
         shiny::selectInput(
             inputId = ns("country"),
             label = "Countries",
-            choices = c("Select countries..." = "", sort(unique(rwb$country_en))),
+            choices = c("Select countries..." = "", sort(unique(rwb_standardized$country_en))),
             selected = character(0),
             multiple = TRUE
         ),

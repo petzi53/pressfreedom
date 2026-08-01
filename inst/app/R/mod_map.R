@@ -125,20 +125,20 @@ rank_tier <- function(rank, max_rank) {
   )
 }
 
-mapSidebarUI <- function(id, rwb) {
+mapSidebarUI <- function(id, rwb_standardized) {
   ns <- shiny::NS(id)
   shiny::tagList(
     shiny::selectInput(
       ns("year"),
       label = "Year",
-      choices = sort(unique(rwb$year_n), decreasing = TRUE),
-      selected = max(rwb$year_n, na.rm = TRUE),
+      choices = sort(unique(rwb_standardized$year_n), decreasing = TRUE),
+      selected = max(rwb_standardized$year_n, na.rm = TRUE),
       width = "100%"
     ),
     shiny::selectInput(
       ns("zone"),
       label = "Zone",
-      choices = c("World", sort(unique(rwb$zone))),
+      choices = c("World", sort(unique(rwb_standardized$zone))),
       selected = "World",
       width = "100%"
     ),
@@ -164,7 +164,7 @@ mapMainUI <- function(id) {
   )
 }
 
-mapServer <- function(id, rwb, reset = NULL) {
+mapServer <- function(id, rwb_standardized, reset = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -175,8 +175,8 @@ mapServer <- function(id, rwb, reset = NULL) {
     if (!is.null(reset)) {
       shiny::observeEvent(reset(), {
         shiny::updateSelectInput(session, "year",
-            choices  = sort(unique(rwb$year_n), decreasing = TRUE),
-            selected = max(rwb$year_n, na.rm = TRUE))
+            choices  = sort(unique(rwb_standardized$year_n), decreasing = TRUE),
+            selected = max(rwb_standardized$year_n, na.rm = TRUE))
         shiny::updateSelectInput(session, "zone", selected = "World")
         shiny::updateSelectInput(session, "metric", selected = "score")
       }, ignoreInit = TRUE)
@@ -190,9 +190,9 @@ mapServer <- function(id, rwb, reset = NULL) {
       shiny::req(input$zone, input$metric)
 
       years <- if (input$zone == "World") {
-        rwb$year_n
+        rwb_standardized$year_n
       } else {
-        rwb$year_n[rwb$zone == input$zone]
+        rwb_standardized$year_n[rwb_standardized$zone == input$zone]
       }
 
       min_year <- dplyr::case_when(
@@ -284,17 +284,17 @@ mapServer <- function(id, rwb, reset = NULL) {
       shiny::req(input$year, input$zone, input$metric)
 
       selected_zones <- if (input$zone == "World") {
-        unique(rwb$zone)
+        unique(rwb_standardized$zone)
       } else {
         input$zone
       }
 
-      result <- rwb |>
+      result <- rwb_standardized |>
         dplyr::filter(year_n == input$year, zone %in% selected_zones)
 
       metric <- input$metric
       result <- if (metric == "rank") {
-        max_rank <- max(rwb$rank, na.rm = TRUE)
+        max_rank <- max(rwb_standardized$rank, na.rm = TRUE)
         result |> dplyr::mutate(band = rank_tier(rank, max_rank))
       } else {
         result |> dplyr::mutate(band = rsf_band(.data[[metric]]))

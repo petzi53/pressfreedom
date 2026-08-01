@@ -30,6 +30,5 @@ Suggests:
 Remotes:
     coolbutuseless/flagon,
     davidsjoberg/ggbump
-LazyData: true
 URL: https://github.com/petzi53/pressfreedom
 BugReports: https://github.com/petzi53/pressfreedom/issues

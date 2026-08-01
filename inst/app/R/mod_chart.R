@@ -7,7 +7,7 @@
 ##                 hover-dims-others and click-to-navigate
 ##
 ## Arguments passed to chartServer():
-##   rwb      — the full data frame (non-reactive)
+##   rwb_standardized      — the full data frame (non-reactive)
 ##   var      — reactive string: "score" or "rank" (dimensions dropped
 ##              from the Trends variable picker — see AGENTS.md for why)
 ##   country  — reactive character vector of selected country names
@@ -39,14 +39,14 @@ chartUI <- function(id, height = "calc(100vh - 105px)") {
     )
 }
 
-chartServer <- function(id, rwb, var, country) {
+chartServer <- function(id, rwb_standardized, var, country) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
         # Filtered data reacts to var and country selections
         data <- shiny::reactive({
             shiny::req(length(country()) > 0)
-            df_chart(rwb, var(), country())
+            df_chart(rwb_standardized, var(), country())
         })
 
         # Most recently clicked country (triggers navigation). Stored as

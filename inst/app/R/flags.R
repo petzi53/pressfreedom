@@ -1,8 +1,8 @@
 ## inst/app/R/flags.R
-## Flag helpers: map rwb's 3-letter `iso` codes to flagon's 2-letter codes
+## Flag helpers: map rwb_standardized's 3-letter `iso` codes to flagon's 2-letter codes
 ## and build <img> tags for rendering.
 ##
-## flagon::flags() is indexed by ISO 3166-1 alpha-2 codes; rwb$iso is
+## flagon::flags() is indexed by ISO 3166-1 alpha-2 codes; rwb_standardized$iso is
 ## alpha-3 and is not a clean 1:1 country mapping (see AGENTS.md). This
 ## file resolves the standard cases via countrycode and overrides the
 ## known non-standard/ambiguous ones by hand rather than guessing.
@@ -35,9 +35,9 @@ flag_overrides <- c(
   SCG   = NA_character_
 )
 
-#' Convert rwb's 3-letter iso codes to flagon's 2-letter flag codes
+#' Convert rwb_standardized's 3-letter iso codes to flagon's 2-letter flag codes
 #'
-#' @param iso3 Character vector of `rwb$iso` values.
+#' @param iso3 Character vector of `rwb_standardized$iso` values.
 #' @return Character vector of lowercase 2-letter codes suitable for
 #'   `flagon::flags()`, or `NA` where no sensible flag exists.
 iso3_to_flag_code <- function(iso3) {
@@ -59,7 +59,7 @@ iso3_to_flag_code <- function(iso3) {
 #' `flag_img_tag()`. Falls back to `""` (no emoji) where no sensible flag
 #' exists, same as `flag_img_tag()`.
 #'
-#' @param iso3 Character vector of `rwb$iso` values.
+#' @param iso3 Character vector of `rwb_standardized$iso` values.
 #' @return Character vector of emoji flags (or `""` where unavailable).
 flag_emoji <- function(iso3) {
   code <- iso3_to_flag_code(iso3)
@@ -80,7 +80,7 @@ flag_emoji <- function(iso3) {
 #' app startup (see app.R). Falls back to `NULL` (no image) rather than a
 #' broken image when no sensible flag exists.
 #'
-#' @param iso3   A single `rwb$iso` value.
+#' @param iso3   A single `rwb_standardized$iso` value.
 #' @param alt    Alt text for the image (defaults to `iso3`).
 #' @param height CSS height for the image.
 flag_img_tag <- function(iso3, alt = iso3, height = "1em") {
