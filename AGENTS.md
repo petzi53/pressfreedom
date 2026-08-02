@@ -4,7 +4,7 @@ This file provides context and guidance for AI agents working on the `pressfreed
 
 ## Project Overview
 
-`pressfreedom` is an R package that bundles a cleaned, multi-year Reporters Without Borders (RSF) Press Freedom Index dataset and a Shiny dashboard for exploring it. The dashboard has three views:
+`pressfreedom` is an R package bundling a Shiny dashboard for exploring the Reporters Without Borders (RSF) Press Freedom Index. The dashboard has three views:
 
 - **Map** — a choropleth of the world, colored by score/rank/dimension for a chosen year; the low-friction entry point into the data.
 - **Trends** — multi-country line charts (Score) or bump charts (Rank) over 2002–2025.
@@ -12,7 +12,19 @@ This file provides context and guidance for AI agents working on the `pressfreed
 
 Clicking a country on the Map or a point on a Trends chart jumps to its Country profile (see "Shared navigation" below).
 
-The companion project `rwb-book` (at `~/Documents/Meine-Repos/rwb-book/`) is a Quarto book documenting the full data pipeline. The cleaned dataset produced there is the source for the bundled `rwb` data object in this package.
+### Data model: live dependency on `pressfreedom.data`
+
+`pressfreedom` does **not** bundle its own dataset. It depends on the companion package [`pressfreedom.data`](https://github.com/petzi53/pressfreedom.data) (on CRAN), which owns the cleaned, multi-year `rwb_standardized` dataset (year, score, rank, country/zone/ISO classifications, UN M49 geography, and 2022+ dimension scores) along with all data-cleaning decisions and known-issue documentation.
+
+At app startup, `inst/app/app.R` loads the data directly:
+
+```r
+rwb_standardized <- pressfreedom.data::rwb_standardized
+```
+
+For anything about the dataset itself — schema, years covered, known data quirks (e.g. the Russia/Russian Federation naming inconsistency, the 2022 zone classification anomaly, factor-coercion history), or the data pipeline that produces it — consult `pressfreedom.data`'s own `AGENTS.md` and documentation, not this file. This package's `AGENTS.md` covers only the Shiny app and package infrastructure that consumes that data.
+
+The companion project `rwb-book` (at `~/Documents/Meine-Repos/rwb-book/`) is a Quarto book documenting the full data pipeline that ultimately feeds `pressfreedom.data`.
 
 Launch the dashboard with:
 
@@ -25,15 +37,11 @@ pressfreedom::run_app()
 ```
 pressfreedom/
 ├── R/
-│   ├── data.R          # Roxygen documentation for the rwb dataset
 │   └── run_app.R       # Exported run_app() function
-├── data/
-│   └── rwb.rda         # Bundled dataset (4,020 rows × 20 variables)
-├── data-raw/
-│   └── rwb.R           # Reproducible script to rebuild rwb.rda from rwb-book
 ├── inst/app/
-│   ├── app.R           # Shiny entry point: loads data, wires modules, shared
-│   │                   # "selected country" reactive, navset wiring (3 views)
+│   ├── app.R           # Shiny entry point: loads pressfreedom.data::rwb_standardized,
+│   │                   # wires modules, shared "selected country" reactive,
+│   │                   # navset wiring (3 views)
 │   └── R/
 │       ├── helpers.R      # df_chart(), card_title()
 │       ├── flags.R        # iso3 -> flagon flag-code mapping, <img>/emoji helpers
@@ -48,49 +56,7 @@ pressfreedom/
 └── AGENTS.md           # This file
 ```
 
-## Bundled Dataset (`rwb`)
-
-| Property | Value |
-| :--- | :--- |
-| Rows | 4,020 |
-| Columns | 20 |
-| Years | 2002–2025 (2011 missing) |
-| Key columns | `year_n`, `score`, `rank`, `country_en`, `iso`, `political_context`, `economic_context`, `legal_context`, `social_context`, `safety` |
-| Geography | Merged with UN M49 classifications (region, sub-region, country) |
-
-Dimension scores (`political_context` etc.) are only available for 2022+. See "Dimension data (2022+): per-view treatment" below for how each view handles that short span differently.
-
-### Known Data Issues
-
-**Country Name Inconsistency: Russia vs. Russian Federation (2023–2025)** — RWB changed the country name from "Russian Federation" (used in 2002–2022) to "Russia" (used in 2023–2025). This is inconsistent with the historical convention.
-
-**Upstream Resolution (rwb-book)**: In the data cleaning pipeline (`031-consolidate.qmd` or equivalent), add a `case_when()` rule to normalize:
-```r
-country_en = case_when(
-  year_n >= 2023 & country_en == "Russia" ~ "Russian Federation",
-  TRUE ~ country_en
-)
-```
-
-**Package-Level Resolution (pressfreedom)**: Applied in `data-raw/rwb.R` immediately after loading the raw data from rwb-book — 2023–2025 entries with `country_en == "Russia"` are automatically converted to "Russian Federation" during package build, ensuring the entire dataset uses the historical name consistently across all 24 years.
-
----
-
-**2022 Zone Classification Anomaly** — In 2022, RWB used two non-standard geographic zones:
-- "Europe - Asie centrale" (53 countries)
-- "Maghreb - Moyen-Orient" (19 countries)
-
-These zones appear **only in 2022** and do not align with the historical classifications used in all other years:
-- "Europe - Asie centrale" countries belong to either "UE Balkans" (40) or "EEAC" (13) in other years
-- "Maghreb - Moyen-Orient" countries belong to "MENA" (19) in all other years
-
-**Resolution**: Applied in `data-raw/rwb.R` — 2022 zone assignments are automatically corrected during package build to match historical classifications. This preserves all 180 countries in 2022 while ensuring zone homogeneity across the entire time series.
-
-**Factor Coercion Bug** — The upstream `rwb-book` pipeline sometimes encodes `country_en`, `zone`, and `iso` as factors. This previously caused subtle bugs downstream (e.g. mismatched `case_when()`/`%in%` comparisons against character values from Shiny inputs, and a factor value flowing unconverted into `plotly::plot_geo(locations = ...)`).
-
-**Resolution**: Applied in `data-raw/rwb.R` — `country_en`, `zone`, and `iso` are explicitly coerced with `as.character()` right after loading the raw data, before any other transformation. All three columns are documented as `character` (not `factor`) in `R/data.R`. Downstream Shiny modules (`mod_inputs.R`, `mod_country.R`, `mod_chart.R`, `mod_map.R`) rely on this guarantee and no longer defensively re-coerce these columns themselves — if you add new code that reads `rwb$country_en`, `rwb$zone`, or `rwb$iso`, you should not need `as.character()` around it.
-
-**2013 `score_evolution` scale-transition artifact** — RSF changed its scoring methodology in 2013, so `score_evolution` (`score - score_n_1`) compares two incompatible scales for that one year, producing artifacts as large as +5,763 across the dataset that are not real year-over-year changes. `rank_evolution` is unaffected (rank is a same-year relative ordering in both years, regardless of the underlying score scale). **Resolution**: `mod_country.R`'s score stat block excludes `year_n == 2013` from the "biggest gain"/"biggest drop" calculation only (`score_evolution` set to `NA` for that year, scoped locally — the underlying `rwb$score_evolution` column is left untouched). If you use `score_evolution` elsewhere, apply the same exclusion or you will surface this artifact.
+`R/run_app.R` includes a `requireNamespace("pressfreedom.data")` guard as a pre-flight check with a clear error message, and to satisfy R CMD check's "all declared Imports should be used" scan — the check tool can't otherwise see that the Imports entry is used inside `inst/app/app.R`, a runtime-sourced script rather than package code.
 
 ## Shiny App Architecture
 
@@ -101,9 +67,11 @@ The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar(
 - **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2025) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
 - **`mod_inputs`** (Trends sidebar) — `selectInput`s for variable (Score/Rank only — dimensions intentionally excluded, see below) and country (multiple selection).
 - **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header.
-- **`flags.R`** — maps `rwb$iso` (alpha-3) to `flagon`'s alpha-2 flag codes; see "Flags (`flagon`)" below.
+- **`flags.R`** — maps `rwb_standardized$iso` (alpha-3) to `flagon`'s alpha-2 flag codes; see "Flags (`flagon`)" below.
 
-`app.R` wires the modules and loads data via `pressfreedom::rwb`. All module files use explicit package namespacing (e.g., `shiny::`, `dplyr::`) so no additional `library()` calls are needed inside modules, except `library(ggplot2)` in `app.R` (required because `ggplotly()` resolves variables by name on the search path).
+`app.R` wires the modules and loads data via `pressfreedom.data::rwb_standardized`. All module files use explicit package namespacing (e.g., `shiny::`, `dplyr::`) so no additional `library()` calls are needed inside modules, except `library(ggplot2)` in `app.R` (required because `ggplotly()` resolves variables by name on the search path).
+
+**`score_evolution` scale-transition artifact (2013)**: RSF changed its scoring methodology in 2013, so `score_evolution` (`score - score_n_1`) compares two incompatible scales for that one year, producing artifacts as large as +5,763 across the dataset that are not real year-over-year changes. `rank_evolution` is unaffected (rank is a same-year relative ordering in both years, regardless of the underlying score scale). **Resolution**: `mod_country.R`'s score stat block excludes `year_n == 2013` from the "biggest gain"/"biggest drop" calculation only (`score_evolution` set to `NA` for that year, scoped locally — the underlying `rwb_standardized$score_evolution` column itself is untouched). If you use `score_evolution` elsewhere, apply the same exclusion or you will surface this artifact.
 
 ### Shared navigation
 
@@ -181,7 +149,7 @@ Dimension scores (`political_context`, `economic_context`, `legal_context`, `soc
 
 Flags are served via [`flagon`](https://github.com/coolbutuseless/flagon) (GitHub-only; `Remotes:` in `DESCRIPTION`), which installs PNG/SVG files on disk indexed by **2-letter ISO 3166-1 alpha-2** codes. `app.R` calls `shiny::addResourcePath("flags", system.file("png", package = "flagon"))` once at startup so `<img src="flags/xx.png">` works anywhere in the app.
 
-`rwb$iso` is **3-letter** and is **not a clean 1:1 country mapping** — `flags.R`'s `iso3_to_flag_code()` resolves the ~190 standard cases via `countrycode::countrycode(iso3, "iso3c", "iso2c")` and applies a manual override table for the rest:
+`rwb_standardized$iso` is **3-letter** and is **not a clean 1:1 country mapping** — `flags.R`'s `iso3_to_flag_code()` resolves the ~190 standard cases via `countrycode::countrycode(iso3, "iso3c", "iso2c")` and applies a manual override table for the rest:
 
 | Issue | Example `iso` value(s) | Resolution |
 | :-- | :-- | :-- |
@@ -196,11 +164,12 @@ Anything else unmapped falls back to `NA` → no flag image / no emoji, rather t
 
 ## Dependencies
 
-`shiny` is the only package in `Imports` (used directly in `R/run_app.R`). All visualization/data-support packages are in `Suggests`:
+`pressfreedom.data` and `shiny` are the only packages in `Imports` — `pressfreedom.data` supplies the `rwb_standardized` dataset (loaded live at app startup, not bundled), and `shiny` is used directly in `R/run_app.R`. All visualization/data-support packages are in `Suggests`:
 
 | Package | Role |
 | :--- | :--- |
-| `shiny` | Web framework |
+| `pressfreedom.data` | Source of the `rwb_standardized` dataset (Imports) |
+| `shiny` | Web framework (Imports) |
 | `bslib` | Bootstrap UI (`page_navbar`, `card`, `navset_hidden`) |
 | `dplyr` | Data filtering in modules |
 | `ggplot2` | Bump chart base layer (Trends' Rank view) |
@@ -209,17 +178,17 @@ Anything else unmapped falls back to `NA` → no flag image / no emoji, rather t
 | `RColorBrewer` | Color palettes (Trends line colors, Country's dimension colors) |
 | `flagon` | Flag PNG/SVG assets (GitHub: `coolbutuseless/flagon`) |
 | `countrycode` | iso3 → iso2 lookups for flags |
-| `htmlwidgets`, `stringr` | Supporting packages for the above |
+| `htmlwidgets` | Client-side JS hooks (`onRender`) for chart interactivity |
 
-`ggbump` and `flagon` are not on CRAN; both are listed under `Remotes:` in `DESCRIPTION`.
+`ggbump` and `flagon` are not on CRAN; both are listed under `Remotes:` in `DESCRIPTION`, which `remotes::install_github()` and `pak::pak()` read automatically to pull in GitHub-only dependencies — no separate manual install step should be needed for end users.
 
 ## Annual Update Workflow
 
-Each May, RWB publishes a new index. To update the bundled dataset:
+Each May, RWB publishes a new index. To update the dashboard:
 
-1. Re-run the data pipeline in `rwb-book`.
-2. Re-run `data-raw/rwb.R` in this package.
-3. Increment the version in `DESCRIPTION`.
+1. `pressfreedom.data` re-runs its own data pipeline (via `rwb-book`) and releases a new version with the updated `rwb_standardized`.
+2. In this package's `DESCRIPTION`, bump the `pressfreedom.data (>= x.y.z)` version floor to the new release.
+3. Increment this package's own version in `DESCRIPTION`.
 4. Run `devtools::document()` and `devtools::check()`.
 5. Run `renv::snapshot(type = "all")`.
 6. Once dimension data (2022+) reaches roughly a decade of history (~2032), revisit whether Score/Rank-only scoping in the Trends variable picker (see "Dimension data (2022+): per-view treatment" above) should be relaxed.

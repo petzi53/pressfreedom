@@ -2,7 +2,6 @@
 ^renv\.lock$
 ^pressfreedom\.Rproj$
 ^\.Rproj\.user$
-^data-raw$
 ^\.posit$
 ^LICENSE\.md$
 ^AGENTS\.md$

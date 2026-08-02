@@ -150,37 +150,54 @@ Detailed country profiles with:
 ```
 pressfreedom/
 ├── R/
-│   ├── data.R                 # Data documentation
 │   └── run_app.R              # App launcher function
 ├── inst/app/
-│   ├── app.R                  # Shiny app entry point
-│   ├── R/
-│   │   ├── mod_inputs.R       # Input controls module
-│   │   ├── mod_map.R          # Map visualization module
-│   │   ├── mod_chart.R        # Trend charts module
-│   │   ├── mod_country.R      # Country profiles module
-│   │   ├── flags.R            # Flag icon utilities
-│   │   └── helpers.R          # Helper functions
-│   ├── www/                   # Static assets (CSS, JS, images)
-│   └── data/                  # Pre-computed cached data
-├── data/
-│   └── rwb.rda                # Processed press freedom dataset
+│   ├── app.R                  # Shiny app entry point; loads
+│   │                          # pressfreedom.data::rwb_standardized
+│   └── R/
+│       ├── mod_inputs.R       # Input controls module
+│       ├── mod_map.R          # Map visualization module
+│       ├── mod_chart.R        # Trend charts module
+│       ├── mod_country.R      # Country profiles module
+│       ├── flags.R            # Flag icon utilities
+│       └── helpers.R          # Helper functions
 ├── README.md                  # This file
 ├── DESCRIPTION                # Package metadata
 └── LICENSE
 ```
+
+The app has no bundled dataset of its own: `inst/app/app.R` loads
+`pressfreedom.data::rwb_standardized` directly at startup, so
+`pressfreedom` always reflects whatever version of `pressfreedom.data`
+is installed.
+
+### Deployment
+
+`inst/app/app.R` is the single source of truth for the app and is used
+unmodified in both places it runs:
+
+- **Locally / as a package** — `run_app()` calls
+  `shiny::runApp(system.file("app", package = "pressfreedom"))`.
+- **`shinyapps.io`** — the `inst/app/` folder is deployed as-is with
+  `rsconnect::deployApp(appDir = "inst/app")`.
+
+One file, two deployment targets — there is no separate copy to keep in
+sync.
 
 ## Data Updates
 
 The RWB Press Freedom Index is published annually (typically in May). To update this package with the latest data:
 
 1. New CSV files are added to pressfreedom.data
-2. Run the pressfreedom.data pipeline (phases A–D)
-3. Update pressfreedom's dependency version in `DESCRIPTION`
-4. Re-run `data-raw/rwb.R` to rebuild `data/rwb.rda`
-5. Increment pressfreedom's version and commit
+2. Run the pressfreedom.data pipeline (phases A–D) and release a new pressfreedom.data version
+3. Bump the `pressfreedom.data (>= x.y.z)` floor in `pressfreedom`'s `DESCRIPTION` to match
+4. Increment pressfreedom's version and commit
 
-**Estimated time:** ~30 minutes
+No local data rebuild step is needed — `pressfreedom` loads
+`pressfreedom.data::rwb_standardized` live, so installing the updated
+`pressfreedom.data` is sufficient.
+
+**Estimated time:** ~10 minutes
 
 For the complete data infrastructure, see [pressfreedom.data](https://github.com/petzi53/pressfreedom.data).
 
