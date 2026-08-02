@@ -182,6 +182,8 @@ Anything else unmapped falls back to `NA` → no flag image / no emoji, rather t
 
 `ggbump` and `flagon` are not on CRAN; both are listed under `Remotes:` in `DESCRIPTION`, which `remotes::install_github()` and `pak::pak()` read automatically to pull in GitHub-only dependencies — no separate manual install step should be needed for end users.
 
+**Temporary: `petzi53/pressfreedom.data` in `Remotes:` (remove once CRAN accepts it).** `pressfreedom.data` was submitted to CRAN but is still pending review as of this writing (2026-08-02). Verified via `remotes::install_github("petzi53/pressfreedom")` on 2026-08-02: with no `Remotes:` entry for it, the dependency resolver printed `Skipping 1 packages not available: pressfreedom.data` and silently continued — the install only "worked" because a satisfying local copy (0.2.0) already existed from prior dev work. On a genuinely clean library this would leave `pressfreedom.data` uninstalled and `run_app()`'s `requireNamespace()` guard would then fail. Added `petzi53/pressfreedom.data` to `Remotes:` as a stopgap so `install_github()`/`pak::pak()` can fetch it from GitHub in the meantime. **Once `pressfreedom.data` is live on CRAN, remove this line from `Remotes:`** — `Remotes:` entries take priority over CRAN sources, so leaving it in place would keep forcing a GitHub install even after the simpler CRAN path becomes available.
+
 ## Annual Update Workflow
 
 Each May, RWB publishes a new index. To update the dashboard:

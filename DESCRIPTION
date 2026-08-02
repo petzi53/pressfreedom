@@ -29,6 +29,7 @@ Suggests:
     RColorBrewer
 Remotes:
     coolbutuseless/flagon,
-    davidsjoberg/ggbump
+    davidsjoberg/ggbump,
+    petzi53/pressfreedom.data
 URL: https://github.com/petzi53/pressfreedom
 BugReports: https://github.com/petzi53/pressfreedom/issues
