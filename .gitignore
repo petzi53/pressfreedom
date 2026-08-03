@@ -6,3 +6,7 @@ conversation-export*.md
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Global ~/.gitignore has a `test-*` rule that otherwise silently
+# excludes every testthat test file (they must be named test-*.R).
+!tests/testthat/test-*
