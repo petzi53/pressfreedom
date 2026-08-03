@@ -162,6 +162,23 @@ Flags are served via [`flagon`](https://github.com/coolbutuseless/flagon) (GitHu
 
 Anything else unmapped falls back to `NA` → no flag image / no emoji, rather than a broken image or an error. Plotly hover templates only support a small HTML subset and don't reliably render `<img>`, so the map tooltip uses `flag_emoji()` (Unicode regional-indicator emoji) instead of `flag_img_tag()`; the Country view header and Trends' click popover use the real `<img>` version since they render actual HTML.
 
+## Favicon (`inst/app/www/`)
+
+`inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (unlike `flagon`'s flags above). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.
+
+Regeneration command (requires the `magick` package — install with `install.packages("magick")` if missing):
+
+```r
+library(magick)
+img <- image_read("man/figures/logo.png")
+
+sizes <- c(16, 32, 48, 64)
+favicon <- image_join(lapply(sizes, function(s) image_scale(img, paste0(s, "x", s))))
+image_write(favicon, path = "inst/app/www/favicon.ico", format = "ico")
+
+image_write(image_scale(img, "32x32"), path = "inst/app/www/favicon.png", format = "png")
+```
+
 ## Dependencies
 
 `pressfreedom.data` and `shiny` are the only packages in `Imports` — `pressfreedom.data` supplies the `rwb_standardized` dataset (loaded live at app startup, not bundled), and `shiny` is used directly in `R/run_app.R`. All visualization/data-support packages are in `Suggests`:

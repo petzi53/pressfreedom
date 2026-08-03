@@ -68,6 +68,13 @@ ui <- bslib::page_navbar(
     bslib::nav_panel("Trends", compareMainUI("chart")),
     bslib::nav_panel("Country", countryMainUI("country")),
     header = shiny::tagList(
+      # Favicon (generated from man/figures/logo.png; see www/favicon.ico).
+      # htmltools hoists tags$head() content into <head> regardless of
+      # where in the UI tree it's declared.
+      shiny::tags$head(
+        shiny::tags$link(rel = "icon", type = "image/x-icon", href = "favicon.ico"),
+        shiny::tags$link(rel = "icon", type = "image/png", href = "favicon.png")
+      ),
       shiny::tags$script(shiny::HTML("
         (function() {
           // --- 1. Sidebar live collapse/reopen at 992px ---

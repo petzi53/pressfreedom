@@ -617,6 +617,13 @@ countryServer <- function(id, rwb_standardized) {
         }
 
         score_trend_plot <- function(d) {
+            # RSF's 2013 methodology change makes pre-2013 `score`
+            # values incompatible with the 0-100 post-2013 scale (see
+            # AGENTS.md's `score_evolution` scale-transition note) —
+            # blank it out here so the chart's natural start is 2013,
+            # not the earliest year with a (differently-scaled) score.
+            d$score[d$year_n < 2013] <- NA_real_
+
             has_any_score_data <- any(!is.na(d$score)) ||
                 any(vapply(map_dimension_vars, function(v) any(!is.na(d[[v]])), logical(1)))
             if (!has_any_score_data) return(plotly::plotly_empty(type = "scatter", mode = "markers"))
