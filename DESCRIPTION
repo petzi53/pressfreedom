@@ -26,7 +26,9 @@ Suggests:
     ggplot2,
     htmlwidgets,
     plotly,
-    RColorBrewer
+    RColorBrewer,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 Remotes:
     coolbutuseless/flagon,
     davidsjoberg/ggbump,
