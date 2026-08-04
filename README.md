@@ -1,211 +1,72 @@
 # pressfreedom
 
-An interactive Shiny dashboard for exploring **Reporters Without Borders (RWB) Press Freedom Index** data from 2002 to the present.
+An interactive Shiny dashboard for exploring the **Reporters Without Borders
+(RSF) Press Freedom Index**, 2002–present, across countries, regions, and
+time — including a five-dimension breakdown (political, economic, legal,
+social, safety) available from 2022 onward.
 
-## Overview
+## Two ways to use it
 
-The Press Freedom Index measures press freedom across countries and regions worldwide. This dashboard combines RWB scores with United Nations M49 geographic classifications to enable rich comparisons across:
+- **[petzi53.shinyapps.io/pressfreedom](https://petzi53.shinyapps.io/pressfreedom/)**
+  — for casual, interactive exploration. No install needed, but subject to
+  shinyapps.io's usage limits.
+- **As an R package** — for heavy exploration, repeated sessions, or
+  offline use, avoiding those limits entirely:
 
-- **Countries** — Historical trends, current rankings, and dimensional breakdowns
-- **Regions** — Geographic aggregations (Asia, Europe, Americas, Africa, Oceania)
-- **Time** — Press freedom trends over two decades (2002–2026)
+  ```r
+  remotes::install_github("petzi53/pressfreedom")
+  # or: pak::pak("petzi53/pressfreedom")
 
-## Features
+  library(pressfreedom)
+  run_app()
+  ```
 
-### 📊 Interactive Visualizations
+Both run the exact same app code (`inst/app/app.R`), so the experience is
+identical either way.
 
-- **Map** — Visualize press freedom zones and rankings by country
-- **Trends** — Explore press freedom trajectories over time
-- **Country profiles** — Detailed country-specific analysis with dimensional breakdowns
+## Data
 
-### 🎯 Flexible Filtering
+Data is sourced from RSF and standardized by the companion
+[pressfreedom.data](https://github.com/petzi53/pressfreedom.data) package,
+which `pressfreedom` loads live at startup (`pressfreedom.data::rwb_standardized`) rather than bundling.
+See its [pkgdown site](https://www.peter-baumgartner.net/pressfreedom.data/index.html)
+for the full data dictionary, cleaning pipeline, and known-issue documentation.
+The dashboard's own "About" tab covers scoring bands, methodology, and
+limitations.
 
-- Filter by country, region, or zone
-- Compare multiple countries side-by-side
-- Explore trends across time periods
-
-### 📈 Multi-dimensional Analysis
-
-For recent years (2022–2026), explore press freedom across five dimensions:
-- Political context
-- Economic context
-- Legal framework
-- Social environment
-- Safety of journalists
-
-## Installation
-
-### From GitHub
-
-```r
-# Using remotes
-remotes::install_github("petzi53/pressfreedom")
-
-# Or using pak
-pak::pak("petzi53/pressfreedom")
-```
-
-### Requirements
-
-- R ≥ 3.5
-- Shiny 1.7.0+
-- pressfreedom.data ≥ 0.1.0
-
-## Getting Started
-
-### Run the Dashboard
-
-```r
-library(pressfreedom)
-run_app()
-```
-
-The dashboard will launch in your default browser. No additional configuration needed.
-
-### Explore the Data
-
-If you want to work with the underlying data directly:
-
-```r
-library(pressfreedom.data)
-
-# Load the standardized press freedom data
-data(rwb_standardized)
-
-# View structure and summary
-head(rwb_standardized)
-str(rwb_standardized)
-```
-
-## Data Source
-
-Data comes from the **Reporters Without Borders (RSF) Press Freedom Index**, processed and standardized by the [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) R package.
-
-### Data Coverage
-
-- **Years:** 2002–2026 (excluding 2011)*
-- **Countries/Territories:** 191
-- **Observations:** 4,192 rows
-
-*2011 data was not published by RSF.
-
-### Data Standardization
-
-The underlying dataset is automatically standardized by pressfreedom.data to:
-
-- **Consolidate country names** — Handle official changes (Turkey → Türkiye, Czechia) and RSF methodology variations
-- **Assign ISO codes** — Every country has a standardized ISO 3-letter code
-- **Normalize columns** — Unified 20-column structure across different RSF methodologies (2002–2012, 2013–2021, 2022–2026)
-- **Preserve audit trails** — Full consolidation history available for data transparency
-
-For technical details, see the [pressfreedom.data documentation](https://github.com/petzi53/pressfreedom.data/blob/main/AGENTS.md).
-
-## Dashboard Modules
-
-### 🗺️ Map Module
-
-Interactive geographic visualization using Plotly. Countries are color-coded by press freedom zone:
-
-- **Green** — Good press freedom
-- **Yellow** — Satisfactory
-- **Orange** — Problematic
-- **Red** — Very serious situation
-
-Click countries to filter; zoom for regional detail.
-
-### 📈 Trends Module
-
-Line charts showing press freedom score trajectories over time.
-
-- Compare individual countries side-by-side
-- Aggregate trends by region
-- Highlight ranking changes and inflection points
-
-### 🌍 Country Module
-
-Detailed country profiles with:
-
-- Historical score evolution (2002–2026)
-- Dimensional analysis (2022–2026 only)
-- Regional ranking and context
-- Year-over-year score changes
-
-## Technical Details
-
-### Built With
-
-| Package | Purpose |
-|---------|---------|
-| [Shiny](https://shiny.rstudio.com/) | Web application framework |
-| [bslib](https://rstudio.github.io/bslib/) | Bootstrap 5 theming |
-| [Plotly](https://plotly.com/r/) | Interactive maps and charts |
-| [ggplot2](https://ggplot2.tidyverse.org/) | Static visualizations |
-| [ggbump](https://github.com/davidsjoberg/ggbump) | Ranking bump charts |
-| [flagon](https://github.com/coolbutuseless/flagon) | Country flag icons |
-| [dplyr](https://dplyr.tidyverse.org/) | Data manipulation |
-| [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) | Data infrastructure & standardization |
-
-### Package Structure
+## Package structure
 
 ```
 pressfreedom/
-├── R/
-│   └── run_app.R              # App launcher function
+├── R/run_app.R          # Exported run_app() launcher
 ├── inst/app/
-│   ├── app.R                  # Shiny app entry point; loads
-│   │                          # pressfreedom.data::rwb_standardized
-│   └── R/
-│       ├── mod_inputs.R       # Input controls module
-│       ├── mod_map.R          # Map visualization module
-│       ├── mod_chart.R        # Trend charts module
-│       ├── mod_country.R      # Country profiles module
-│       ├── flags.R            # Flag icon utilities
-│       └── helpers.R          # Helper functions
-├── README.md                  # This file
-├── DESCRIPTION                # Package metadata
-└── LICENSE
+│   ├── app.R            # Shiny entry point (also deployed as-is to shinyapps.io)
+│   └── R/                # Modules: map, trends chart, country profile, inputs, flags, about, helpers
+└── DESCRIPTION
 ```
 
-The app has no bundled dataset of its own: `inst/app/app.R` loads
-`pressfreedom.data::rwb_standardized` directly at startup, so
-`pressfreedom` always reflects whatever version of `pressfreedom.data`
-is installed.
+## Citation & Contact
 
-### Deployment
+**How to cite:**
 
-`inst/app/app.R` is the single source of truth for the app and is used
-unmodified in both places it runs:
+If you use this package or the underlying Press Freedom Index data, please cite both:
 
-- **Locally / as a package** — `run_app()` calls
-  `shiny::runApp(system.file("app", package = "pressfreedom"))`.
-- **`shinyapps.io`** — the `inst/app/` folder is deployed as-is with
-  `rsconnect::deployApp(appDir = "inst/app")`.
+1. The **pressfreedom R package**:
+   ```
+   Peter Baumgartner (2026). pressfreedom: Press Freedom Dashboard. 
+   R package version 0.1.0.
+   https://github.com/petzi53/pressfreedom
+   ```
 
-One file, two deployment targets — there is no separate copy to keep in
-sync.
+2. The **original RSF data**:
+   ```
+   Reporters Without Borders (RSF). World Press Freedom Index. 
+   https://rsf.org/en/index
+   ```
 
-## Data Updates
+**Found a bug or have a question?**
 
-The RWB Press Freedom Index is published annually (typically in May). To update this package with the latest data:
-
-1. New CSV files are added to pressfreedom.data
-2. Run the pressfreedom.data pipeline (phases A–D) and release a new pressfreedom.data version
-3. Bump the `pressfreedom.data (>= x.y.z)` floor in `pressfreedom`'s `DESCRIPTION` to match
-4. Increment pressfreedom's version and commit
-
-No local data rebuild step is needed — `pressfreedom` loads
-`pressfreedom.data::rwb_standardized` live, so installing the updated
-`pressfreedom.data` is sufficient.
-
-**Estimated time:** ~10 minutes
-
-For the complete data infrastructure, see [pressfreedom.data](https://github.com/petzi53/pressfreedom.data).
-
-## Support
-
-Found a bug? Have a feature request? Please open an issue:
-
-[**petzi53/pressfreedom/issues**](https://github.com/petzi53/pressfreedom/issues)
+[Open an issue on GitHub](https://github.com/petzi53/pressfreedom/issues).
 
 ## License
 
@@ -214,23 +75,13 @@ MIT License. See [LICENSE](LICENSE) for details.
 ## Credits
 
 The hex logo's microphone icon is from Flaticon:
-
 <a href="https://www.flaticon.com/free-icons/microphone" title="microphone icons">Microphone icons created by Magnific - Flaticon</a>
 
 ## Author
 
-**Peter Baumgartner**
+**Peter Baumgartner** · petzi53@gmail.com · [ORCID](https://orcid.org/0000-0003-4526-8791) · [GitHub](https://github.com/petzi53)
 
-- Email: petzi53@gmail.com
-- ORCID: [0000-0003-4526-8791](https://orcid.org/0000-0003-4526-8791)
-- GitHub: [@petzi53](https://github.com/petzi53)
+## Related
 
-## Related Projects
-
-- [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) — Data acquisition and standardization
-- [Reporters Without Borders (RSF)](https://rsf.org/) — Original data source
-
----
-
-**Last updated:** July 29, 2026  
-**Package version:** 0.1.0
+- [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) — data acquisition and standardization
+- [Reporters Without Borders (RSF)](https://rsf.org/) — original data source

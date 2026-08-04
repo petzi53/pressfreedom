@@ -1,0 +1,18 @@
+url: https://www.peter-baumgartner.net/pressfreedom/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference]
+    right: [github]
+
+reference:
+- title: Dashboard
+  desc: >
+    The only exported function. `pressfreedom` is a thin Shiny wrapper
+    around the companion `pressfreedom.data` package, which owns the
+    underlying dataset and its documentation.
+  contents:
+  - run_app

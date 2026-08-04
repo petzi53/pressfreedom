@@ -6,3 +6,6 @@ conversation-export*.md
 
 /.quarto/
 **/*.quarto_ipynb
+
+/docs
+/pkgdown

@@ -4,15 +4,60 @@
 #' Borders (RWB) Press Freedom Index data. The dashboard lets users compare
 #' country scores and rankings over time using line charts and bump charts.
 #'
+#' The dashboard has four tabs:
+#' \itemize{
+#'   \item \strong{Map} — a choropleth of the world, colored by score, rank,
+#'     or (2022+) dimension for a chosen year.
+#'   \item \strong{Trends} — multi-country line charts (Score) or bump
+#'     charts (Rank) over 2002–2025.
+#'   \item \strong{Country} — a single country's profile: current/best/worst
+#'     stats, score-band/rank-tier counts, and combined score/rank trend
+#'     charts with dimension overlays.
+#'   \item \strong{About} — methodology, limitations, and citation
+#'     information for the dashboard and its data.
+#' }
+#'
+#' A read-only version of this same dashboard is also deployed at
+#' \url{https://petzi53.shinyapps.io/pressfreedom/}, useful for quick,
+#' casual exploration without installing anything. Running it locally via
+#' `run_app()` avoids that deployment's usage limits and is recommended
+#' for repeated or heavier use.
+#'
+#' This package does not bundle its own data; `run_app()` loads
+#' \code{\link[pressfreedom.data]{rwb_standardized}} from the companion
+#' \pkg{pressfreedom.data} package at startup. To work with that data
+#' directly (outside the dashboard) rather than through the app, load
+#' \pkg{pressfreedom.data} and consult its documentation and vignettes at
+#' \url{https://www.peter-baumgartner.net/pressfreedom.data/}, e.g.:
+#'
+#' ```r
+#' library(pressfreedom.data)
+#' head(rwb_standardized)
+#' ?rwb_standardized
+#' ```
+#'
 #' @param ... Arguments passed to [shiny::runApp()], such as `port` or
 #'   `launch.browser`.
 #'
 #' @return Called for its side effect (launching the app). Returns invisibly.
+#'
+#' @seealso
+#' \code{\link[pressfreedom.data]{rwb_standardized}} for the underlying
+#' dataset's documentation.
+#'
 #' @export
 #'
 #' @examples
 #' if (interactive()) {
+#'   # Launch with defaults
 #'   run_app()
+#'
+#'   # Launch without opening a browser automatically, e.g. inside an
+#'   # IDE's viewer pane or a remote session
+#'   run_app(launch.browser = FALSE)
+#'
+#'   # Pin a specific port, e.g. to satisfy a firewall rule
+#'   run_app(port = 8080)
 #' }
 run_app <- function(...) {
     # pressfreedom.data is a hard dependency (Imports), but only used inside

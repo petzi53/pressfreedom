@@ -1,4 +1,4 @@
-This application uses data processed via the `pressfreedom.data` R package. While the raw data is sourced from [Reporters Sans Frontieres (RSF)](https://rsf.org/en/index), the cleaning and transformation logic is maintained in the [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) package to ensure reproducibility and ease of use for researchers.
+This application uses data processed via the `pressfreedom.data` R package. While the raw data is sourced from [Reporters Sans Frontieres (RSF)](https://rsf.org/en/index), the cleaning and transformation logic is maintained in the [pressfreedom.data](https://www.peter-baumgartner.net/pressfreedom.data/index.html) package to ensure reproducibility and ease of use for researchers.
 
 While this Shiny application provides an interactive overview of press freedom trends, researchers requiring more intensive data exploration can install the [pressfreedom R package](https://github.com/petzi53/pressfreedom) to run the application locally. This avoids shinyapps.io usage limits and provides a more seamless experience for heavy data exploration and analysis.
 
@@ -10,7 +10,7 @@ While this Shiny application provides an interactive overview of press freedom t
 
 - **Dimension scores** (Political, Economic, Legal, Social, Safety context): sub-components of the overall score, available from 2022 onward only.
 
-- The `pressfreedom.data` package assembles, cleans, and standardizes RSF's yearly data releases (2002–present) into one tidy, analysis-ready dataset. See its [pkgdown site](https://petzi53.github.io/pressfreedom.data/) for full documentation.
+- The `pressfreedom.data` package assembles, cleans, and standardizes RSF's yearly data releases (2002–present) into one tidy, analysis-ready dataset. See its [pkgdown site](https://www.peter-baumgartner.net/pressfreedom.data/index.html) for full documentation.
 
 - For RSF's own scoring methodology, see their [methodology page](https://rsf.org/en/methodology-used-compiling-world-press-freedom-index-2026).
 
@@ -22,7 +22,7 @@ While this Shiny application provides an interactive overview of press freedom t
 
 - Dimension scores exist for only four years so far (2022–present).
 
-- Country names and ISO codes have shifted over 24 years of RSF releases (renames, territorial variants, defunct states); see `pressfreedom.data`'s own documentation for how these are standardized.
+- Country names and ISO codes have shifted over 24 years of RSF releases (renames, territorial variants, defunct states); see [`pressfreedom.data`'s documentation](https://www.peter-baumgartner.net/pressfreedom.data/index.html) for how these are standardized.
 
 - The index reflects an expert- and correspondent-based assessment methodology, which may entail uneven reporting depth across regions.
 

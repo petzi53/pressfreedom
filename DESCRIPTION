@@ -26,6 +26,7 @@ Suggests:
     ggbump,
     ggplot2,
     htmlwidgets,
+    pkgdown,
     plotly,
     RColorBrewer,
     testthat (>= 3.0.0)
@@ -34,5 +35,5 @@ Remotes:
     coolbutuseless/flagon,
     davidsjoberg/ggbump,
     petzi53/pressfreedom.data
-URL: https://github.com/petzi53/pressfreedom
+URL: https://github.com/petzi53/pressfreedom, https://www.peter-baumgartner.net/pressfreedom/
 BugReports: https://github.com/petzi53/pressfreedom/issues
