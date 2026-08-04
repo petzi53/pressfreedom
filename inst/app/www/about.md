@@ -1,5 +1,7 @@
 This application uses data processed via the `pressfreedom.data` R package. While the raw data is sourced from [Reporters Sans Frontieres (RSF)](https://rsf.org/en/index), the cleaning and transformation logic is maintained in the [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) package to ensure reproducibility and ease of use for researchers.
 
+While this Shiny application provides an interactive overview of press freedom trends, researchers requiring more intensive data exploration can install the [pressfreedom R package](https://github.com/petzi53/pressfreedom) to run the application locally. This avoids shinyapps.io usage limits and provides a more seamless experience for heavy data exploration and analysis.
+
 ## Data & Methodology
 
 - **Score** (0–100): RSF's overall press freedom score, classified here into five bands — Good (85–100), Satisfactory (70–85), Problematic (55–70), Difficult (40–55), Serious (0–40).
