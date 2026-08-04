@@ -149,7 +149,30 @@ mapSidebarUI <- function(id, rwb_standardized) {
       selected = "score",
       width = "100%"
     ),
-    shiny::uiOutput(ns("bands_ui")),
+    # Band checkboxes are built once here (score bands, matching the
+    # default metric = "score") rather than via renderUI keyed on
+    # input$metric. mapServer()'s metric-change observer below uses
+    # shiny::updateCheckboxGroupInput() to swap choices/labels/selection
+    # when the metric type (score-like vs rank) changes, restoring each
+    # type's own remembered selection instead of resetting to "all
+    # checked" every time. See mapServer() for why a uiOutput/renderUI
+    # rebuild here was the source of the "checkboxes reset when switching
+    # back to a previously used metric" bug.
+    shiny::tags$style(shiny::HTML(paste0(
+      "#", ns("bands"), " .checkbox label { font-size: 0.8rem; }"
+    ))),
+    shiny::checkboxGroupInput(
+      ns("bands"),
+      label = "Show bands",
+      choiceNames = band_choice_names(rsf_band_levels, rsf_band_labels, rsf_band_colors),
+      choiceValues = rsf_band_levels,
+      selected = rsf_band_levels
+    ),
+    shiny::checkboxInput(
+      ns("deselect_all"),
+      label = "Deselect all",
+      value = FALSE
+    ),
     shiny::actionButton(
       ns("clear"),
       "Clear",
@@ -174,11 +197,43 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Map view state tracking for zoom/pan preservation.
+    # When uirevision in the plotly layout changes, plotly.js resets the
+    # user's zoom/pan/geo positioning back to the layout's default. By
+    # keeping uirevision constant across all routine control changes
+    # (metric switch, band toggles, year/zone selection, etc.), the
+    # geo view persists. Only do_reset_map() changes this token, so
+    # reset-triggered redraws return to the default position. Uses
+    # proc.time()[["elapsed"]] for a globally unique, monotonic value
+    # (same pattern as clicked_country's nonce elsewhere in this module).
+    map_view_id <- shiny::reactiveVal(as.numeric(proc.time()[["elapsed"]]))
+
+    # Tracks the "Deselect all" checkbox value most recently *set by this
+    # module* (whether programmatically, to keep its displayed state
+    # honest, or in direct response to the user's own click on it) --
+    # see the observeEvent(input$deselect_all, ...) and
+    # observeEvent(input$bands, ...) blocks below for why this is needed:
+    # without it, a programmatic updateCheckboxInput() call that merely
+    # syncs the toggle's *display* (e.g. unchecking it because the user
+    # manually re-checked a band) is indistinguishable, from inside the
+    # deselect_all observer, from a genuine user click -- and that
+    # observer unconditionally resets the whole band selection whenever
+    # the box becomes unchecked. See AGENTS.md for the full reproduction
+    # and root-cause writeup.
+    deselect_all_tracked <- shiny::reactiveVal(FALSE)
+
     # Complete reset of Map filters and band checkboxes to their defaults.
     # This is called from two entry points:
     # 1. input$clear (the new Clear button in the sidebar)
     # 2. reset() reactive (fed by app.R's "Reset all" button)
     do_reset_map <- function() {
+      # Reset both metric types' remembered band/tier selections first
+      # (see score_bands_selected/rank_tiers_selected below), so that
+      # regardless of whether resetting "metric" to "score" actually
+      # changes its value (and thus fires the metric-change observer) or
+      # not, the checkbox group ends up showing the full default set.
+      score_bands_selected(rsf_band_levels)
+      rank_tiers_selected(rank_tier_levels)
       # Reset year/zone/metric to defaults
       shiny::updateSelectInput(session, "year",
           choices  = sort(unique(rwb_standardized$year_n), decreasing = TRUE),
@@ -187,10 +242,20 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
       shiny::updateSelectInput(session, "metric", selected = "score")
       # Reset band checkboxes and "Deselect all" toggle to their defaults.
       # This closes a pre-existing gap where resetting metric to a value it
-      # already had wouldn't re-trigger bands_ui's renderUI and therefore
-      # wouldn't visually reset the checkboxes.
-      shiny::updateCheckboxGroupInput(session, "bands", selected = rsf_band_levels)
+      # already had wouldn't re-trigger the metric-change observer above
+      # and therefore wouldn't visually reset the checkboxes.
+      shiny::updateCheckboxGroupInput(
+        session, "bands",
+        label = "Show bands",
+        choiceNames = band_choice_names(rsf_band_levels, rsf_band_labels, rsf_band_colors),
+        choiceValues = rsf_band_levels,
+        selected = rsf_band_levels
+      )
+      deselect_all_tracked(FALSE)
       shiny::updateCheckboxInput(session, "deselect_all", value = FALSE)
+      # Bump the map view ID so plotly.js resets zoom/pan to the default
+      # geo projection (defined by the layout spec below).
+      map_view_id(as.numeric(proc.time()[["elapsed"]]))
     }
 
     # Wire Clear button to do_reset_map()
@@ -235,45 +300,68 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
     })
 
     # Band checkboxes: level set (and thus labels/colours) depends on
-    # whether the active metric is rank or a score-like variable. All
-    # bands start checked; switching metric type rebuilds the set fresh.
-    output$bands_ui <- shiny::renderUI({
-      shiny::req(input$metric)
+    # whether the active metric is rank or a score-like variable. Each
+    # type remembers its own checkbox selection independently (via the
+    # two reactiveVals below) so that switching the metric away and back
+    # restores whatever the user had checked, instead of resetting to
+    # "all checked".
+    #
+    # This used to be a uiOutput/renderUI rebuilt on every input$metric
+    # change, always with selected = levels_ (full set). That silently
+    # discarded the user's checkbox state on every metric switch -- e.g.
+    # picking "Good" only under Score, switching to Rank, then back to
+    # Score would show all Score bands checked again, even though nothing
+    # about Score's own selection should have changed. Fixed by keeping
+    # the checkboxGroupInput itself static in mapSidebarUI() and instead
+    # using shiny::updateCheckboxGroupInput() here to swap its
+    # choices/label/selection, sourcing `selected` from whichever
+    # reactiveVal matches the metric type being switched *to*.
+    score_bands_selected <- shiny::reactiveVal(rsf_band_levels)
+    rank_tiers_selected  <- shiny::reactiveVal(rank_tier_levels)
+
+    shiny::observeEvent(input$metric, {
       is_rank <- input$metric == "rank"
       levels_ <- if (is_rank) rank_tier_levels else rsf_band_levels
       labels_ <- if (is_rank) rank_tier_labels else rsf_band_labels
       colors_ <- if (is_rank) rank_tier_colors else rsf_band_colors
+      selected_ <- if (is_rank) rank_tiers_selected() else score_bands_selected()
 
-      shiny::tagList(
-        # Scoped to this input's id so it doesn't leak to other checkbox
-        # groups in the app; smaller font keeps every label on one line
-        # at the sidebar's 260px width.
-        shiny::tags$style(shiny::HTML(paste0(
-          "#", ns("bands"), " .checkbox label { font-size: 0.8rem; }"
-        ))),
-        shiny::checkboxGroupInput(
-          ns("bands"),
-          label = if (is_rank) "Show tiers" else "Show bands",
-          choiceNames = band_choice_names(levels_, labels_, colors_),
-          choiceValues = levels_,
-          selected = levels_
-        ),
-        # Toggle-style checkbox: checking it clears every band/tier;
-        # unchecking it restores all of them. Kept out of the
-        # checkboxGroupInput itself (it isn't a band/tier of its own).
-        shiny::checkboxInput(
-          ns("deselect_all"),
-          label = "Deselect all",
-          value = FALSE
-        )
+      shiny::updateCheckboxGroupInput(
+        session, "bands",
+        label = if (is_rank) "Show tiers" else "Show bands",
+        choiceNames = band_choice_names(levels_, labels_, colors_),
+        choiceValues = levels_,
+        selected = selected_
       )
-    })
+      # Sync "Deselect all"'s displayed state via deselect_all_tracked
+      # *first* -- see its declaration above -- so that when this
+      # programmatic update reaches the client and bounces back as an
+      # input$deselect_all change, the observer below recognises it as
+      # its own echo and skips the destructive full-reset logic, instead
+      # of clobbering the selected_ restore just performed above.
+      deselect_all_tracked(length(selected_) == 0)
+      shiny::updateCheckboxInput(session, "deselect_all", value = length(selected_) == 0)
+    }, ignoreInit = TRUE)
 
     # Wire the "Deselect all" toggle to the band checkboxes. ignoreInit
     # avoids clearing bands on first render, and the levels_ used here
     # must match whichever set (rank tiers vs score bands) is currently
     # displayed.
+    #
+    # Guarded by deselect_all_tracked: skip the reset logic entirely when
+    # this fires as the echo of our own programmatic
+    # updateCheckboxInput() call (from the metric-change observer, the
+    # input$bands sync below, or do_reset_map()) rather than a genuine
+    # user click. Without this guard, restoring a previously-saved
+    # partial band selection on a metric switch would immediately be
+    # overwritten back to "everything checked" whenever "Deselect all"
+    # happened to still be checked from an earlier action -- see
+    # AGENTS.md for the full reproduction.
     shiny::observeEvent(input$deselect_all, {
+      if (identical(input$deselect_all, deselect_all_tracked())) {
+        return(invisible(NULL))
+      }
+      deselect_all_tracked(input$deselect_all)
       is_rank <- identical(input$metric, "rank")
       levels_ <- if (is_rank) rank_tier_levels else rsf_band_levels
       shiny::updateCheckboxGroupInput(
@@ -295,9 +383,38 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
     # correctly, then let every subsequent input$bands change --
     # including a change to NULL from unchecking the last box, captured via
     # ignoreNULL = FALSE -- overwrite it verbatim, so case (b) sticks.
+    #
+    # Also persists the change into whichever per-type reactiveVal
+    # (score_bands_selected / rank_tiers_selected) matches the *current*
+    # metric, so the metric-change observer above can restore it later.
+    # input$metric already reflects the new value by the time a
+    # metric-triggered updateCheckboxGroupInput() call above causes this
+    # observer to re-fire (Shiny delivers the metric change first), so
+    # this never misattributes a band update to the wrong type.
     checked_bands <- shiny::reactiveVal(rsf_band_levels)
     shiny::observeEvent(input$bands, {
       checked_bands(input$bands)
+      is_rank <- identical(input$metric, "rank")
+      if (is_rank) {
+        rank_tiers_selected(input$bands)
+      } else {
+        score_bands_selected(input$bands)
+      }
+
+      # Keep "Deselect all"'s displayed state honest: check it once the
+      # user has (via the individual band checkboxes) ended up with
+      # nothing selected, uncheck it as soon as anything is selected --
+      # e.g. after checking "Deselect all" and then manually re-checking
+      # one band, which used to leave "Deselect all" visibly checked
+      # despite a non-empty selection. deselect_all_tracked is updated
+      # here *before* the update call reaches the client, so the echoed
+      # input$deselect_all change is recognised as our own and doesn't
+      # re-trigger the destructive full-reset logic in that observer.
+      should_be_checked <- length(input$bands) == 0
+      if (!identical(should_be_checked, deselect_all_tracked())) {
+        deselect_all_tracked(should_be_checked)
+        shiny::updateCheckboxInput(session, "deselect_all", value = should_be_checked)
+      }
     }, ignoreNULL = FALSE)
 
     # Filtered data: year + zone, with every row classified into a band
@@ -420,7 +537,16 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
             projection = list(type = "robinson"),
             lataxis = list(range = c(-75, 80))
           ),
-          margin = list(l = 0, r = 0, t = 10, b = 0)
+          margin = list(l = 0, r = 0, t = 10, b = 0),
+          uirevision = map_view_id(),
+          # The plotly htmlwidget's Shiny binding only calls Plotly.react()
+          # (which respects uirevision) when layout$transition is truthy;
+          # otherwise every renderPlotly() re-run does Plotly.purge() +
+          # Plotly.newPlot(), a full teardown that discards uirevision's
+          # preserved zoom/pan regardless of the token. duration = 0 keeps
+          # this instantaneous (no visible animation) while still routing
+          # through the react() path.
+          transition = list(duration = 0)
         ) |>
         plotly::event_register("plotly_click")
     })
