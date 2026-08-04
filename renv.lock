@@ -1206,15 +1206,14 @@
     "pressfreedom.data": {
       "Package": "pressfreedom.data",
       "Version": "0.2.0",
-      "Source": "unknown",
+      "Source": "GitHub",
       "Type": "Package",
       "Title": "Download and Process Reporters Without Borders Press Freedom Index Data",
       "Authors@R": "person(\"Peter\", \"Baumgartner\", email = \"petzi53@gmail.com\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0003-4526-8791\"))",
-      "Author": "Peter Baumgartner [aut, cre]",
       "Maintainer": "Peter Baumgartner <petzi53@gmail.com>",
       "Description": "Download press freedom index data from Reporters Without Borders (RSF) with period-aware encoding handling. Provides infrastructure for data cleaning and ISO 3166 standardization in downstream phases.",
       "License": "MIT + file LICENSE",
-      "URL": "https://github.com/petzi53/pressfreedom.data, https://petzi53.github.io/pressfreedom.data",
+      "URL": "https://github.com/petzi53/pressfreedom.data, https://www.peter-baumgartner.net/pressfreedom.data/",
       "BugReports": "https://github.com/petzi53/pressfreedom.data/issues",
       "Encoding": "UTF-8",
       "LazyData": "true",
@@ -1237,13 +1236,14 @@
         "knitr",
         "rmarkdown",
         "ggplot2",
-        "ggbump",
         "tidyr",
+        "forcats",
         "patchwork",
         "scales",
         "sf",
         "rnaturalearth",
-        "testthat (>= 3.0.0)"
+        "testthat (>= 3.0.0)",
+        "covr"
       ],
       "VignetteBuilder": "knitr",
       "Config/roxygen2/version": "8.0.0",
@@ -1251,7 +1251,14 @@
       "Depends": [
         "R (>= 4.1.0)"
       ],
-      "NeedsCompilation": "no"
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "pressfreedom.data",
+      "RemoteUsername": "petzi53",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "5dbf993c30d482a8a98504138b063b01a5af81da",
+      "NeedsCompilation": "no",
+      "Author": "Peter Baumgartner [aut, cre] (ORCID: <https://orcid.org/0000-0003-4526-8791>)"
     },
     "prettyunits": {
       "Package": "prettyunits",
