@@ -162,6 +162,50 @@ Flags are served via [`flagon`](https://github.com/coolbutuseless/flagon) (GitHu
 
 Anything else unmapped falls back to `NA` → no flag image / no emoji, rather than a broken image or an error. Plotly hover templates only support a small HTML subset and don't reliably render `<img>`, so the map tooltip uses `flag_emoji()` (Unicode regional-indicator emoji) instead of `flag_img_tag()`; the Country view header and Trends' click popover use the real `<img>` version since they render actual HTML.
 
+## About tab
+
+A permanent `page_navbar(footer = ...)` attribution line was tried first but
+was dropped — it permanently consumed vertical space on every tab (worst on
+the space-constrained Map view) for a single line of content. Replaced with
+a 4th `nav_panel("About", aboutMainUI(rwb_standardized))`, which costs no
+space unless a user visits it and has room for much richer content
+(methodology, limitations, citation).
+
+- **`mod_about.R`** — UI-only, no server; loads markdown content from
+  `inst/app/www/about.md` at runtime and renders it: `aboutMainUI(data)`
+  builds the main content (a provenance paragraph always visible, plus a
+  `bslib::accordion()` with "Data & Methodology", "Limitations & Caveats",
+  and "Citation & Contact" panels parsed directly from the markdown file
+  and all collapsed by default), and `aboutSidebarUI(id)` builds the
+  sidebar's "Back to Dashboard" button (the tab has no filters). There's no
+  `aboutServer()` — nothing here is reactive — so the "Back to Dashboard"
+  button's `observeEvent()` is wired directly in `app.R`'s server
+  alongside the existing title-click handler, reading
+  `input[["about-back_to_dashboard"]]` manually rather than through
+  `moduleServer()` scoping. The `parse_about_sections()` helper splits the
+  markdown by `## ` level-2 headings and renders each section to HTML via
+  `shiny::markdown()`.
+- **Text content lives in `inst/app/www/about.md`**: all About-page prose
+  (intro paragraph, methodology bullets, limitations, citations, contact
+  info) is maintained as plain markdown text, separate from R code. To
+  update the About page, simply edit `about.md` — no R coding needed. The
+  markdown file's three level-2 headings (`## Data & Methodology`,
+  `## Limitations & Caveats`, `## Citation & Contact`) automatically become
+  the accordion panel titles; everything before the first heading is the
+  always-visible intro paragraph.
+- **Dashboard version and data-year coverage are computed, not hand-typed**:
+  `tryCatch(utils::packageVersion("pressfreedom"), ...)` (falls back to
+  "development version" under `devtools::load_all()`, which has no
+  installed version to read) and `range(data$year_n)`, so neither can go
+  stale as the package version bumps or new data years are added. These
+  appear at the bottom of the "Citation & Contact" accordion panel.
+- **Sidebar behavior**: entering/leaving the About tab does **not**
+  toggle the sidebar's open/closed state — whatever the user had it set to
+  is left untouched, exactly like switching between any other pair of tabs.
+  The sidebar's `navset_hidden()` still needs a matching
+  `nav_panel_hidden("About", aboutSidebarUI("about"))` purely so the
+  existing "view" -> "sidebar_view" sync observer has a panel to select.
+
 ## Favicon (`inst/app/www/`)
 
 `inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (unlike `flagon`'s flags above). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.

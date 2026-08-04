@@ -61,12 +61,28 @@ ui <- bslib::page_navbar(
             id = "sidebar_view",
             bslib::nav_panel_hidden("Map",    mapSidebarUI("map", rwb_standardized)),
             bslib::nav_panel_hidden("Trends", compareSidebarUI("inputs", rwb_standardized)),
-            bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb_standardized))
+            bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb_standardized)),
+            # About has no filters — just a "back to dashboard" button (see
+            # mod_about.R). Deliberately does NOT toggle the sidebar's
+            # open/closed state on enter/leave: whatever the user had it set
+            # to (open or closed) is left untouched, same as switching
+            # between any other pair of tabs.
+            bslib::nav_panel_hidden("About", aboutSidebarUI("about"))
         )
     ),
     bslib::nav_panel("Map",    mapMainUI("map")),
     bslib::nav_panel("Trends", compareMainUI("chart")),
     bslib::nav_panel("Country", countryMainUI("country")),
+    bslib::nav_panel("About", aboutMainUI(rwb_standardized)),
+    bslib::nav_spacer(),
+    bslib::nav_item(
+      shiny::actionButton(
+        "reset_all",
+        "Reset all",
+        icon = shiny::icon("rotate-left"),
+        class = "btn-sm"
+      )
+    ),
     header = shiny::tagList(
       # Favicon (generated from man/figures/logo.png; see www/favicon.ico).
       # htmltools hoists tags$head() content into <head> regardless of
@@ -136,6 +152,18 @@ ui <- bslib::page_navbar(
         /* Title acts as a home link — inherit navbar colour, underline on hover */
         #reset_app { color: inherit !important; text-decoration: none !important; }
         #reset_app:hover { text-decoration: underline !important; }
+
+        /* Reset all button: light grey background with black text, red on hover */
+        #reset_all {
+          background-color: #e8e8e8 !important;
+          color: #000 !important;
+          border-color: #d0d0d0 !important;
+        }
+        #reset_all:hover {
+          background-color: #d32f2f !important;
+          color: #fff !important;
+          border-color: #d32f2f !important;
+        }
 
         /* Matches Bootstrap's own 'lg' breakpoint, where our navbar's
            nav-links already collapse to a hamburger by default — this
@@ -207,11 +235,27 @@ server <- function(input, output, session) {
     # (section 1 of the header script) via a matchMedia listener that
     # calls bslib's Sidebar.toggle() when the viewport crosses 992px.
 
-    # Title click: navigate to Map and signal the map module to reset
+    # Title click: navigate to Map home (without resetting Map's own filters)
     reset_trigger <- shiny::reactiveVal(0)
     shiny::observeEvent(input$reset_app, {
         bslib::nav_select("view", "Map")
-        reset_trigger(reset_trigger() + 1)
+    })
+
+    # Reset all: clear all controls across all views and return to Map
+    shiny::observeEvent(input$reset_all, {
+        bslib::nav_select("view", "Map")
+        reset_trigger(reset_trigger() + 1)  # resets Map's own filters (year/zone/metric/bands)
+        shiny::updateSelectInput(session, "inputs-var", selected = "score")
+        shiny::updateSelectInput(session, "inputs-country", selected = character(0))
+        shiny::updateSelectInput(session, "country-country", selected = "")
+    })
+
+    # About tab's "Back to Dashboard" button — no module server needed
+    # (mod_about.R is UI-only), so wired directly here alongside the
+    # title-click handler above. Namespaced manually ("about-...") since
+    # there's no moduleServer() scoping this input.
+    shiny::observeEvent(input[["about-back_to_dashboard"]], {
+        bslib::nav_select("view", "Map")
     })
 
     # Shared "selected country" reactive: both the Map's click-to-navigate

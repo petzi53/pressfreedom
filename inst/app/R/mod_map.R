@@ -149,7 +149,13 @@ mapSidebarUI <- function(id, rwb_standardized) {
       selected = "score",
       width = "100%"
     ),
-    shiny::uiOutput(ns("bands_ui"))
+    shiny::uiOutput(ns("bands_ui")),
+    shiny::actionButton(
+      ns("clear"),
+      "Clear",
+      icon = shiny::icon("times"),
+      class = "btn-sm btn-outline-secondary w-100 mt-1"
+    )
   )
 }
 
@@ -168,17 +174,34 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Reset filters to their defaults when triggered (e.g. title click).
-    # The old pan/zoom relayout plumbing tied to the previous
-    # dropdown+hover-pulse selection mechanism is intentionally dropped —
-    # click-to-navigate (below) replaces that interaction entirely.
+    # Complete reset of Map filters and band checkboxes to their defaults.
+    # This is called from two entry points:
+    # 1. input$clear (the new Clear button in the sidebar)
+    # 2. reset() reactive (fed by app.R's "Reset all" button)
+    do_reset_map <- function() {
+      # Reset year/zone/metric to defaults
+      shiny::updateSelectInput(session, "year",
+          choices  = sort(unique(rwb_standardized$year_n), decreasing = TRUE),
+          selected = max(rwb_standardized$year_n, na.rm = TRUE))
+      shiny::updateSelectInput(session, "zone", selected = "World")
+      shiny::updateSelectInput(session, "metric", selected = "score")
+      # Reset band checkboxes and "Deselect all" toggle to their defaults.
+      # This closes a pre-existing gap where resetting metric to a value it
+      # already had wouldn't re-trigger bands_ui's renderUI and therefore
+      # wouldn't visually reset the checkboxes.
+      shiny::updateCheckboxGroupInput(session, "bands", selected = rsf_band_levels)
+      shiny::updateCheckboxInput(session, "deselect_all", value = FALSE)
+    }
+
+    # Wire Clear button to do_reset_map()
+    shiny::observeEvent(input$clear, {
+      do_reset_map()
+    })
+
+    # Wire reset() trigger (fed by app.R's "Reset all" button) to do_reset_map()
     if (!is.null(reset)) {
       shiny::observeEvent(reset(), {
-        shiny::updateSelectInput(session, "year",
-            choices  = sort(unique(rwb_standardized$year_n), decreasing = TRUE),
-            selected = max(rwb_standardized$year_n, na.rm = TRUE))
-        shiny::updateSelectInput(session, "zone", selected = "World")
-        shiny::updateSelectInput(session, "metric", selected = "score")
+        do_reset_map()
       }, ignoreInit = TRUE)
     }
 

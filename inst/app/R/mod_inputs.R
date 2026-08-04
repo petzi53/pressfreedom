@@ -31,7 +31,7 @@ inputsUI <- function(id, rwb_standardized) {
         ),
         shiny::actionButton(
             ns("clear"),
-            "Clear all",
+            "Clear",
             icon  = shiny::icon("times"),
             class = "btn-sm btn-outline-secondary w-100 mt-1"
         )
