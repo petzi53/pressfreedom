@@ -377,7 +377,6 @@ countryServer <- function(id, rwb_standardized) {
         output$stat_table <- shiny::renderUI({
             d <- country_data()
             rd <- d |> dplyr::filter(!is.na(rank))
-            scored_rows <- d |> dplyr::filter(!is.na(score))
 
             rank_st <- if (nrow(rd) > 0) {
                 country_block_stats(d, "rank", "rank_evolution", direction = "lower_better")
@@ -386,20 +385,22 @@ countryServer <- function(id, rwb_standardized) {
             }
             rank_central <- if (nrow(rd) > 0) stats::median(rd$rank, na.rm = TRUE) else NA_real_
 
-            # RSF changed its scoring methodology in 2013, so score_evolution
-            # (score - score_n_1) compares two incompatible scales for that
-            # one year, producing artifacts as large as +5,763 across the
-            # dataset that aren't real year-over-year changes. rank_evolution
-            # is unaffected (rank is a same-year relative ordering both
-            # years). Excluded here, scoped to this stat table only.
-            d_evol <- d |>
+            # RSF changed its scoring methodology in 2013, so pre-2013 scores
+            # use an incompatible scale (see AGENTS.md's `score_evolution`
+            # scale-transition note). Restrict to 2013+ to ensure all stats
+            # use comparable values. score_evolution for 2013 itself is still
+            # an artifact (first comparable year vs. incompatible 2012 value)
+            # and is also NA'd out below.
+            d_score <- d |>
+                dplyr::filter(year_n >= 2013) |>
                 dplyr::mutate(
                     score_evolution = dplyr::if_else(
                         year_n == 2013, NA_real_, score_evolution
                     )
                 )
+            scored_rows <- d_score |> dplyr::filter(!is.na(score))
             score_st <- if (nrow(scored_rows) > 0) {
-                country_block_stats(d_evol, "score", "score_evolution", direction = "higher_better")
+                country_block_stats(d_score, "score", "score_evolution", direction = "higher_better")
             } else {
                 NULL
             }
@@ -408,10 +409,12 @@ countryServer <- function(id, rwb_standardized) {
             stat_table(rank_st, score_st, rank_central, score_central)
         })
 
-        # Score band counts: every year with a non-NA score (2013+),
-        # classified via rsf_band() (from mod_map.R, best-\u2192worst order).
+        # Score band counts: every year with a non-NA score (2013+, after
+        # RSF's 2013 methodology change; see AGENTS.md's `score_evolution`
+        # scale-transition note), classified via rsf_band() (from mod_map.R,
+        # best-\u2192worst order).
         score_band_data <- shiny::reactive({
-            d <- country_data() |> dplyr::filter(!is.na(score))
+            d <- country_data() |> dplyr::filter(!is.na(score), year_n >= 2013)
             counts <- d |>
                 dplyr::mutate(band = factor(rsf_band(score), levels = rsf_band_levels)) |>
                 dplyr::count(band, .drop = FALSE)
