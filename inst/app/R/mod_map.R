@@ -178,7 +178,8 @@ mapSidebarUI <- function(id, rwb_standardized) {
       "Clear",
       icon = shiny::icon("times"),
       class = "btn-sm btn-outline-secondary w-100 mt-1"
-    )
+    ),
+    shiny::uiOutput(ns("download_ui"))
   )
 }
 
@@ -190,6 +191,33 @@ mapMainUI <- function(id) {
       full_screen = TRUE,
       plotly::plotlyOutput(ns("map"), height = "100%")
     )
+  )
+}
+
+# Build the single descriptive line placed at the top of the Map CSV
+# export, in place of the generic csv_notes() caveats (neither of which
+# applies to a single-year snapshot — see AGENTS.md).
+map_download_note <- function(metric, zone, year, checked) {
+  is_rank <- identical(metric, "rank")
+  levels_ <- if (is_rank) rank_tier_levels else rsf_band_levels
+  labels_ <- if (is_rank) rank_tier_labels else rsf_band_labels
+
+  metric_label <- if (is_rank) {
+    "Ranks"
+  } else if (metric == "score") {
+    "Scores"
+  } else {
+    paste0(map_metric_labels[[metric]], " scores")
+  }
+  band_word <- if (is_rank) "tiers" else "range"
+
+  # Preserve best -> worst display order regardless of checkbox click order
+  selected_labels <- labels_[levels_[levels_ %in% checked]]
+  band_list <- paste(selected_labels, collapse = ", ")
+
+  sprintf(
+    "%s of the Region '%s' for %s: Selected %s %s.",
+    metric_label, zone, year, band_word, band_list
   )
 }
 
@@ -298,6 +326,26 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
         selected = max(available_years, na.rm = TRUE)
       )
     })
+
+    # Metric dropdown: restrict to Score/Rank only when year < 2022
+    # (dimensions exist only from 2022 onward). This is the reverse direction
+    # of the existing metric -> year observer below: while picking a dimension
+    # metric restricts the year list to 2022+, picking a pre-2022 year should
+    # restrict the metric list to Score/Rank only.
+    #
+    # Safe against feedback loops: only ever changes input$metric when the
+    # currently-selected metric becomes invalid under the new constraints
+    # (unreachable in normal use, since pre-2022 years are only available
+    # when no dimension metric is already selected). do_reset_map() needs no
+    # changes: it resets year to the dataset's max (currently 2026, >= 2022),
+    # which automatically restores the full metric choice set via this observer.
+    shiny::observeEvent(input$year, {
+      shiny::req(input$year)
+      pre_2022 <- as.numeric(input$year) < 2022
+      choices <- if (pre_2022) map_metric_choices[c("Score", "Rank")] else map_metric_choices
+      selected <- if (input$metric %in% names(choices)) input$metric else "score"
+      shiny::updateSelectInput(session, "metric", choices = choices, selected = selected)
+    }, ignoreInit = TRUE)
 
     # Band checkboxes: level set (and thus labels/colours) depends on
     # whether the active metric is rank or a score-like variable. Each
@@ -449,6 +497,22 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
         )
     })
 
+    # Download data: map_data filtered to only checked bands/tiers, plus
+    # dimension columns dropped for pre-2022 years (they exist only 2022+,
+    # so pre-2022 values are already all-NA; this just removes empty columns
+    # from the export).
+    map_download_data <- shiny::reactive({
+      data <- map_data()
+      checked <- checked_bands()
+      if (is.null(checked)) checked <- character(0)
+      data <- data[data$band %in% checked, , drop = FALSE]
+      # Drop dimension columns for pre-2022 years
+      if (nrow(data) > 0 && as.numeric(input$year) < 2022) {
+        data <- data[, setdiff(names(data), map_dimension_vars), drop = FALSE]
+      }
+      data
+    })
+
     # Render the choropleth: one flat-colour trace per band/tier, so
     # unchecked bands can be greyed out independently of the others while
     # keeping every country visible (geography stays legible).
@@ -550,6 +614,43 @@ mapServer <- function(id, rwb_standardized, reset = NULL) {
         ) |>
         plotly::event_register("plotly_click")
     })
+
+    # Conditional download UI: disabled with message when no data to export
+    output$download_ui <- shiny::renderUI({
+      if (nrow(map_download_data()) == 0) {
+        shiny::tagList(
+          shiny::tags$button(
+            "Download CSV",
+            class = "btn btn-sm btn-outline-secondary w-100 mt-1",
+            disabled = "disabled"
+          ),
+          shiny::div(
+            "No countries available for this selection.",
+            class = "text-muted small mt-1"
+          )
+        )
+      } else {
+        shiny::downloadButton(ns("download"), "Download CSV", class = "btn-sm btn-outline-secondary w-100 mt-1")
+      }
+    })
+
+    # CSV download handler
+    output$download <- shiny::downloadHandler(
+        filename = function() {
+            zone_slug <- if (identical(input$zone, "World")) {
+                "world"
+            } else {
+                tolower(gsub("[^A-Za-z0-9]+", "_", input$zone))
+            }
+            sprintf("pressfreedom_map_%s_%s_%s.csv", input$metric, input$year, zone_slug)
+        },
+        content = function(file) {
+            checked <- checked_bands()
+            if (is.null(checked)) checked <- character(0)
+            note <- map_download_note(input$metric, input$zone, input$year, checked)
+            write_csv_with_notes(map_download_data(), file, notes = note)
+        }
+    )
 
     # Click-to-navigate: a click on any country sets a reactive that the
     # app-level server can observe to switch to the Country view. Replaces
