@@ -2,6 +2,29 @@
 
 This file provides context and guidance for AI agents working on the `pressfreedom` R package.
 
+## CRITICAL: One Question at a Time (UI Glitch Workaround)
+
+**Requirement:** NEVER ask multiple questions in a single response. Ask only one question per response, whether using `AskUser()` or inline clarifying questions.
+
+**Why:** There is a UI glitch in RStudio/Posit that prevents rendering of multiple questions in a single batch. Only the **last question is visible** to the user. When the user answers the last (only visible) question, the interface stalls because the system is still waiting for answers to the earlier (hidden) questions.
+
+**Correct pattern:**
+```
+Turn 1: Ask Question 1 only
+Turn 2: Wait for answer to Q1, then ask Question 2 only
+Turn 3: Wait for answer to Q2, then ask Question 3 only
+```
+
+**Incorrect pattern (causes stalling):**
+```
+Turn 1: Ask Questions 1, 2, 3 all in one response
+[User sees only Q3, answers it, interface stalls]
+```
+
+**If multiple sequential questions are needed:** Ask them across multiple turns (one per turn), not all at once. This is slower but avoids the glitch entirely.
+
+**If you want to batch multiple options into one decision:** Use a single `AskUser()` call with multiple `options` (buttons), which renders correctly. This is fine — the glitch affects *multiple questions*, not *multiple options within one question*.
+
 ## Project Overview
 
 `pressfreedom` is an R package bundling a Shiny dashboard for exploring the Reporters Without Borders (RSF) Press Freedom Index. The dashboard has three views:
@@ -25,6 +48,20 @@ rwb_standardized <- pressfreedom.data::rwb_standardized
 For anything about the dataset itself — schema, years covered, known data quirks (e.g. the Russia/Russian Federation naming inconsistency, the 2022 zone classification anomaly, factor-coercion history), or the data pipeline that produces it — consult `pressfreedom.data`'s own `AGENTS.md` and documentation, not this file. This package's `AGENTS.md` covers only the Shiny app and package infrastructure that consumes that data.
 
 The companion project `rwb-book` (at `~/Documents/Meine-Repos/rwb-book/`) is a Quarto book documenting the full data pipeline that ultimately feeds `pressfreedom.data`.
+
+### Known data observations in `rwb_standardized`
+
+**Date documented:** 2026-08-05. Four systemic observations were identified in the `rwb_standardized` dataset (owned by `pressfreedom.data`):
+
+1. **`score` inflated in 2008:** ~114 of ~167 countries show scores multiplied by 10–100 (Austria: 35 instead of 3.5–3.6). Pre-2013 scores are **excluded from all analyses and displays in this app** due to RSF's 2013 methodology change. The inflated values suggest a **data transformation issue** (incomplete division by 10 or 100) in the original ingestion and warrant investigation in `rwb-book` for data quality understanding, though correction is not urgent for this app.
+
+2. **`score` anomalies in 2012:** ~65 of ~177 countries show large deviations from neighbors (Austria: -8, Canada: -567, etc.). This was a **special coverage year combining 2011 (unpublished) with 2012**, which may explain the anomalies. Pre-2013 scores are excluded from this app regardless; investigation in `rwb-book` recommended to understand the 2011+2012 combination processing.
+
+3. **`score_evolution` NA for 2003–2021:** Intentional **by design** — year-over-year evolution across the 2013 methodology boundary (incompatible scales) would be invalid. This is not a bug; the column correctly reflects that no valid comparison can be made across this boundary. **Not relevant to this app**, which displays absolute trends over time, not year-over-year changes (unlike RSF's original analysis).
+
+4. **`score_n_1` NA for 2022:** Likely a schema-transition artifact when dimension scores were introduced. Could optionally be backfilled for consistency with RSF's methodology, but **not required for this app**, which does not use year-over-year comparisons.
+
+**For detailed diagnostic evidence and investigation suggestions,** see [`.posit/assistant/docs/2026-08-05-rwb-data-anomalies.md`](.posit/assistant/docs/2026-08-05-rwb-data-anomalies.md) — this serves as a reference for anyone investigating these observations in `pressfreedom.data` or `rwb-book`.
 
 Launch the dashboard with:
 
