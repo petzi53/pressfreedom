@@ -101,9 +101,9 @@ The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar(
 
 - **`mod_map`** — choropleth (`plotly::plot_geo()`) colored by Score, Rank, or a 2022+ dimension. Year choices react to both `zone` and `metric` (dimensions restrict to 2022+, score to 2013+). Score-like metrics use RSF's real 5-class band classification; Rank uses percentile tiers — both exposed as independent `checkboxGroupInput` toggles that grey out (not remove) unchecked bands. See "Map score/rank bands" below.
 - **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. All interactive behavior (hover-dimming and click-to-navigate) is handled client-side via JavaScript (`onRender`) — see "Client-side JavaScript approach for chart interactivity" below for why and how.
-- **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2025) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
+- **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2026) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
 - **`mod_inputs`** (Trends sidebar) — `selectInput`s for variable (Score/Rank only — dimensions intentionally excluded, see below) and country (multiple selection).
-- **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header.
+- **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header; `csv_notes()` and `write_csv_with_notes()` generate and export data with dynamic caveats (see "CSV data download per view" below).
 - **`flags.R`** — maps `rwb_standardized$iso` (alpha-3) to `flagon`'s alpha-2 flag codes; see "Flags (`flagon`)" below.
 
 `app.R` wires the modules and loads data via `pressfreedom.data::rwb_standardized`. All module files use explicit package namespacing (e.g., `shiny::`, `dplyr::`) so no additional `library()` calls are needed inside modules, except `library(ggplot2)` in `app.R` (required because `ggplotly()` resolves variables by name on the search path).
@@ -242,15 +242,17 @@ In `mapServer()`, a `reactiveVal` named `map_view_id` holds a unique token (via 
 
 ## Dimension data (2022+): per-view treatment
 
-Dimension scores (`political_context`, `economic_context`, `legal_context`, `social_context`, `safety`) exist for only 4 of the dataset's 24 years, so each view treats them differently rather than forcing them into a multi-year picker they don't suit yet:
+Dimension scores (`political_context`, `economic_context`, `legal_context`, `social_context`, `safety`) exist for only 5 of the dataset's 24 years (2022–2026), so each view treats them differently rather than forcing them into a multi-year picker they don't suit yet:
 
 | View | Treatment | Why |
 | :-- | :-- | :-- |
 | **Map** | Coloring option, single year at a time (year choices restrict to 2022–2025 when picked) | Already single-year by construction — a snapshot is the natural unit regardless of series length. |
-| **Trends** (multi-country) | Dropped from the variable picker entirely — Score/Rank only | Comparing 5 dimensions × several countries over just 4 years, on an axis shared with 23 years of Score/Rank history, is a "little information, real complexity" chart — not legible. |
-| **Country** (single country) | Overlaid onto the Score/Rank trend charts as 5 thin lines each (2022–2025 only, naturally), sharing a deduplicated legend via `legendgroup` — see `mod_country`'s bullet above | With one country, 4 years × 5 lines is legible and shows a genuine short trend — the complexity-vs-information ratio that's bad in Trends is fine here because both the country count (1) and the axis (each panel's own natural range: 2013–2025 for score, ~2003–2025 for rank) are scoped correctly. |
+| **Trends** (multi-country) | Dropped from variable picker (charts show Score/Rank only); exported in CSV with all 5 dimension columns (NA-padded pre-2022) | Charts: Comparing 5 dimensions × countries over 4 years, shared with 23 years of Score/Rank, is unreadable. CSV: Export includes dimensions for data completeness; users can filter/ignore NAs. |
+| **Country** (single country) | Overlaid onto the Score/Rank trend charts as 5 thin lines each (2022–2026 only, naturally), sharing a deduplicated legend via `legendgroup` — see `mod_country`'s bullet above | With one country, 5 years × 5 lines is legible and shows a genuine short trend — the complexity-vs-information ratio that's bad in Trends is fine here because both the country count (1) and the axis (each panel's own natural range: 2013–2026 for score, ~2003–2026 for rank) are scoped correctly. |
 
-**Revisit at a future annual update**: as dimensions accumulate more years — a decade's worth by ~2032 — reconsider whether they've earned a slot in the Trends variable picker too. Not done as of this writing (2025 is the 4th year of dimension data).
+**Trends CSV exports:** The downloaded CSV files from the Trends view include all five dimension columns (`political_context`, `economic_context`, `legal_context`, `social_context`, `safety`) in addition to Score or Rank. Dimension values are `NA` for all years before 2022 (when the methodology changed); this is annotated in the CSV header. Filenames are contextual: `pressfreedom_trends_{variable}_{country}.csv` for a single country, or `pressfreedom_trends_{variable}_compare_countries.csv` when comparing multiple countries. The exported data is not charted in Trends — dimension trends remain available in the Country view (single-country focus, 5 years of data, much more legible than a multi-country dimension scatter).
+
+**Revisit at a future annual update**: as dimensions accumulate more years — a decade's worth by ~2032 — reconsider whether they've earned a slot in the Trends variable picker too. Not done as of this writing (2026 is the 5th year of dimension data).
 
 ## Flags (`flagon`)
 
@@ -329,13 +331,51 @@ merge cleanly, so exactly one panel's config is kept and explicitly set
 (`displayModeBar = TRUE`) rather than stripped from both — see the inline
 comment above `p_rank$x$config <- NULL` in `mod_country.R`.
 
-A CSV/data-download button was considered and explicitly deferred (not
-implemented) — decided against for now since R-comfortable users already
-have full access via `pressfreedom.data::rwb_standardized` directly. If
-this is revisited, the open design questions are: per-view filtered
-export vs. whole-dataset export, and whether to attach an inline caveat
-about the 2013 score-scale discontinuity (see "Score scale-transition
-artifact (2013)" above) to any exported file.
+## CSV data download per view
+
+Each of the three views (Map, Trends, Country) includes a "Download CSV" button that exports that view's **current filtered slice**, not the entire `rwb_standardized` table:
+
+- **Map**: sidebar button below "Clear" (disabled with "No countries available for this selection." message when no bands/tiers are checked or the selected Zone+band combination matches zero countries); exports the single-year snapshot filtered by Metric, Zone, and checked bands/tiers only; **drops the 5 dimension columns for pre-2022 years** (they exist only from 2022 onward, so pre-2022 values are all-NA anyway, and removing them shrinks empty exports); filename: `pressfreedom_map_<metric>_<year>_<zone_slug>.csv` (e.g., `pressfreedom_map_score_2025_world.csv` or `pressfreedom_map_rank_2025_americas.csv`).
+- **Trends**: sidebar button below "Clear" (only visible when countries are selected); exports all selected countries' Score/Rank history for the selected metric **including all 5 dimension columns** (NA-padded pre-2022); filename is contextual: `pressfreedom_trends_<variable>_<country>.csv` for a single country (e.g., `pressfreedom_trends_rank_austria.csv`), or `pressfreedom_trends_<variable>_compare_countries.csv` when multiple countries are selected (e.g., `pressfreedom_trends_score_compare_countries.csv`).
+- **Country**: sidebar button below "Clear" (only visible when a country is selected); exports the full history (all years) for the selected country **minus the previous-year comparison columns** (`rank_n_1`, `rank_evolution`, `score_n_1`, `score_evolution` — kept internal to the stat-table calculations but excluded from exports, consistent with the app's principle of showing absolute trends, never year-over-year changes); filename: `pressfreedom_country_<country>.csv` (spaces replaced with underscores).
+
+### Dynamic caveats on exports
+
+Each view generates its own notes for CSV exports:
+
+**Map view:**
+- Exports a single-year snapshot, so the generic score/2011 caveats are inapplicable.
+- Instead, a single **custom descriptive line** is generated by `map_download_note()` (local to `inst/app/R/mod_map.R`), listing the metric, region, year, and the checked bands/tiers with their numeric ranges. Examples:
+  - `Scores of the Region 'World' for 2025: Selected range Good (85-100), Satisfactory (70-85), Problematic (55-70), Difficult (40-55), Serious (0-40).`
+  - `Ranks of the Region 'Americas' for 2025: Selected tiers Top 2.5%, 2.5%-15%.`
+  - `Political Context scores of the Region 'Africa' for 2024: Selected range Good (85-100).`
+
+**Trends and Country views:**
+- Use the generic, **automatic, content-driven caveat comments** (prefixed with `#`) via the `csv_notes()` helper in `inst/app/R/helpers.R`:
+
+1. **Score methodology caveat** — appears when the export contains `score` values (Country view only; Trends view skips this since data is always 2013+): "RSF changed its scoring methodology in 2013 — score values from 2002–2012 are on a different, non-comparable scale to 2013–present scores. Do not average or compare scores across that boundary."
+
+2. **Dimension availability caveat** — appears when the export includes dimension columns (both Trends and Country views, always; dimensions are always present in `df_chart()` output): "Context factors (political, economic, legal, social context, and safety) are not available (NA) before 2022."
+
+3. **2011 data gap caveat** — appears when the export spans a year range that straddles 2011 (i.e., `min(year_n) ≤ 2010` AND `max(year_n) ≥ 2012`): "2011 has no published index and is absent from this data — a gap in RSF's own release history, not a data-cleaning artifact."
+
+Both helpers (`csv_notes()` and `write_csv_with_notes()`) live in `inst/app/R/helpers.R`. `csv_notes()` now accepts an optional `for_trends` parameter (default FALSE) to conditionally suppress the score methodology caveat when called from the Trends view (where it's always moot). `write_csv_with_notes()` accepts both `notes =` and `for_trends =` parameters: when `notes` is provided, it bypasses auto-detection entirely (Map uses this for custom descriptive lines); when `for_trends = TRUE`, it passes that flag to `csv_notes()` for Trends-specific logic. This ensures notes remain correct if view filtering changes later.
+
+**Specific note applicability per view:**
+- **Map**: Single custom descriptive line (metric, region, year, selected bands/tiers with ranges).
+- **Trends Score**: Dimension note + 2011 note (if spanning it); filtered to 2013+ (no score methodology note, data never crosses 2013 boundary).
+- **Trends Rank**: Dimension note + 2011 note (if spanning it); full history back to ~2002 (no score methodology note; rank unaffected by 2013 break).
+- **Country**: Score note (if data spans pre-2013) + Dimension note + 2011 note (if spanning it); full history 2002–2025.
+
+### Map Metric dropdown: Year-based restriction
+
+The Map's Metric dropdown normally offers all 7 options (Score, Rank, 5 dimensions). When a pre-2022 year is selected, the dropdown is restricted to Score/Rank only (dimensions exist only from 2022 onward), via a new `observeEvent(input$year, ...)` in `mapServer()`. This is the reverse direction of the existing **metric → year** restriction (picking a dimension metric restricts years to 2022+).
+
+The two-way sync is safe against feedback loops: the year observer only changes the metric when the currently-selected metric becomes invalid under the new constraint — an unreachable case in normal use, since pre-2022 years are available only when a dimension metric wasn't already selected. `do_reset_map()` needs no special handling: it resets year to the dataset's max (currently 2026, ≥ 2022), which automatically restores the full metric option set via the year observer.
+
+### Country CSV export: Internal vs. external column usage
+
+`country_data()` (the module's internal data source for stat-table calculations) retains all columns including `rank_evolution` and `score_evolution` — these are needed for the stat block's "Biggest advance/decline" figures. A separate `country_download_data()` reactive drops these 4 comparison columns before passing to `write_csv_with_notes()` for export, so the exported CSV shows absolute values only while internal displays still have access to the evolution metrics they require.
 
 **Modebar/border overlap on the combined trend chart:** turning the
 modebar back on exposed a separate issue — the plotly R package's own
