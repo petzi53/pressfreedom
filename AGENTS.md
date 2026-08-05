@@ -77,6 +77,28 @@ The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar(
 
 Both the Map's click-to-navigate and Trends' click-to-chart point click feed into a single `selected_country` reactiveVal in `app.R`, rather than each view running its own copy of the navigation logic. One observer downstream does the actual work: `nav_select("view", "Country")` (which also drives the sidebar's `navset_hidden` via the sync observer above) and preselect the clicked country there. If you add a third click-to-navigate entry point, feed it into `selected_country` too rather than duplicating that observer.
 
+#### Trends <-> Country selection sync (independent of the click-to-navigate flow above)
+
+Separately from click-to-navigate, the Trends multi-country list and the Country view's single-country selector are kept in sync in **both directions**, without ever forcing a tab switch:
+
+- **Country -> Trends:** `country_selected <- countryServer("country", ...)` is watched by an `observeEvent()` in `app.R` that appends the newly-selected country to `inputs-country` (via `updateSelectInput()`) if it isn't already present. Clearing Country's selection (the "Clear" button, or picking the blank placeholder option) runs the mirror-image action: it drops the *last* country from the Trends list via `utils::head(current_trends_selection, -1)`. If Trends still has other countries after that removal, the `last_country` resync (described next) immediately repopulates Country with the new last one — Country is always a mirror of Trends' last entry, so "clear" only leaves it blank once Trends itself becomes empty. A removal attempt against an already-empty Trends selection (e.g. when this observer fires from the echo of the Trends -> Country resync itself) is a harmless no-op.
+- **Trends -> Country:** `mod_inputs.R`'s `inputsServer()` returns a `last_country` reactive — `tail(input$country, 1)` (or `NA_character_` when the list is empty), recomputed on every change to the Trends selection. An `observeEvent(sel$last_country(), ...)` in `app.R` resyncs `country-country` to that value on every change.
+
+The Trends -> Country direction is a "keep in sync with whatever is currently last in the list" resync, not an add/remove event log — it intentionally does **not** distinguish additions from removals:
+
+| Trends list action | New last element? | Country view changes? |
+| :-- | :-- | :-- |
+| Append a 6th country | Yes (the new one) | Yes — switches to it |
+| Remove a *non-last* country (e.g. the 3rd of 5) | No — unchanged | No (resync fires but is a no-op) |
+| Remove the *last* country | Yes (the new last, e.g. the old 4th) | Yes — switches to it |
+| Clear all / Reset all (list becomes empty) | `last_country()` is `NA_character_` | Yes — Country's selection is blanked (`""`) |
+
+`last_country` is a **plain derived `reactive()`, not a `reactiveVal` with a nonce** — unlike `selected_country` above, there's no need to defeat identical-value skipping here: `app.R`'s observer is watching a reactive expression (which re-invalidates on every upstream `input$country` change regardless of whether the computed `tail()` value actually differs), not a `reactiveVal` being reassigned. A same-value resync (the "non-last removal" row above) is simply a harmless no-op `updateSelectInput()` call, not a skipped one.
+
+Emptying the Trends list blanks Country's selection rather than leaving a stale value behind — `last_country` is `NA_character_` in that case, and the observer maps that to `selected = ""`. This keeps Country from ever displaying a country that no longer appears anywhere in the Trends list, a state a user has no way to reach by interacting with Country directly (the standard master-detail convention: an empty source list implies an empty derived selection, not a frozen last value).
+
+This also means the two directions above tolerate re-triggering each other harmlessly: e.g. a Country -> Trends append makes the appended country both the new last-in-Trends-list *and* already Country's current selection, so the Trends -> Country resync it triggers just reasserts the same value. Same for the Map/Trends click-to-navigate flow, which also appends to the Trends list via `inputsServer()`'s own internal `observeEvent(selected_country(), ...)`.
+
 #### Nonce collision pitfall: identical values silently skip `reactiveVal` observers
 
 Both the Map and Trends modules return `list(country = ..., nonce = ...)` to the app-level `selected_country` reactiveVal. The nonce is **critical** — `reactiveVal` silently skips calling observers when assigned an `identical()` value to its current one.

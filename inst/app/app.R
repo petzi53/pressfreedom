@@ -288,6 +288,19 @@ server <- function(input, output, session) {
         selected_country()$country
     }))
 
+    # Keep the Country view's single-select synced to whichever country
+    # currently sits last in the Trends list (append a country -> it
+    # becomes new last -> Country switches to it; remove a non-last
+    # country -> last is unchanged -> no visible change; remove the last
+    # country -> the new last becomes Country's selection). See
+    # AGENTS.md's "Trends <-> Country sync" section.
+    shiny::observeEvent(sel$last_country(), {
+        shiny::updateSelectInput(
+            session, "country-country",
+            selected = if (is.na(sel$last_country())) "" else sel$last_country()
+        )
+    })
+
     # Chart module receives those reactives and the raw data, and returns
     # a reactive holding the country most recently clicked on a chart point
     # (or NULL).
@@ -314,15 +327,28 @@ server <- function(input, output, session) {
     # add it to Trends when the user selects a country in the Country view
     country_selected <- countryServer("country", rwb_standardized)
     shiny::observeEvent(country_selected(), {
-        # Only add to Trends if a country is actually selected (non-empty string)
-        if (country_selected() != "") {
-            current_trends_selection <- sel$country()
-            new_country <- country_selected()
+        current_trends_selection <- sel$country()
+        new_country <- country_selected()
+        if (new_country != "") {
             # Add the country if not already selected in Trends
             if (!new_country %in% current_trends_selection) {
                 updated_selection <- c(current_trends_selection, new_country)
                 shiny::updateSelectInput(session, "inputs-country", selected = updated_selection)
             }
+        } else if (length(current_trends_selection) > 0) {
+            # Country cleared -> drop the last Trends country too, mirroring
+            # the Trends -> Country direction (see AGENTS.md's "Trends <->
+            # Country selection sync"). If other countries remain in
+            # Trends, the last_country resync above will immediately
+            # repopulate Country with the new last one — that's the
+            # intended, consistent behavior, not a bug: Country is always
+            # a mirror of Trends' last entry, so "clear" only truly leaves
+            # it blank once Trends is empty too. A same-value removal from
+            # an already-empty Trends selection is a harmless no-op, so
+            # this branch is also safe when it fires from the echo of the
+            # Trends -> Country resync itself.
+            updated_selection <- utils::head(current_trends_selection, -1)
+            shiny::updateSelectInput(session, "inputs-country", selected = updated_selection)
         }
     })
 }

@@ -2,7 +2,12 @@
 ## Module for the Trends sidebar input controls.
 ##
 ## inputsUI()     — sidebar widget HTML
-## inputsServer() — returns list(var, country) as reactives
+## inputsServer() — returns list(var, country, last_country) as reactives.
+##   `last_country` is `tail(input$country, 1)` (or NA_character_ when
+##   empty), recomputed on every change — used by app.R to keep the
+##   Country view's single-select synced to whichever country currently
+##   sits last in the Trends list (see AGENTS.md's "Trends <-> Country
+##   sync" section).
 ##
 ## Variable choices are Score/Rank only. Dimension variables
 ## (political/economic/legal/social context, safety) only span 2022+ and
@@ -56,11 +61,23 @@ inputsServer <- function(id, selected_country = NULL) {
             }
         })
 
+        # Derived reactive (not a reactiveVal/event log): recomputes from
+        # whatever input$country currently is on every change. app.R
+        # resyncs the Country view's selection to this value each time
+        # it changes — see AGENTS.md's "Trends <-> Country sync" section
+        # for why a plain reactive (no nonce) is enough here, unlike
+        # `selected_country`'s nonce elsewhere in the app.
+        last_country <- shiny::reactive({
+            cnty <- input$country
+            if (length(cnty) > 0) utils::tail(cnty, 1) else NA_character_
+        })
+
         # Return inputs as reactives
         # so parent/sibling modules can consume them
         list(
             var = shiny::reactive(input$var),
-            country = shiny::reactive(input$country)
+            country = shiny::reactive(input$country),
+            last_country = last_country
         )
     })
 }
