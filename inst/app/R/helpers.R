@@ -17,7 +17,7 @@ df_chart <- function(df, var, country) {
     
     df |>
         dplyr::filter(year_n >= min_year) |>
-        dplyr::select(year_n, dplyr::all_of(var), dplyr::all_of(dimensions), 
+        dplyr::select(year_n, dplyr::all_of(var), dplyr::any_of(dimensions), 
                       country_en, iso) |>
         dplyr::filter(country_en %in% country) |>
         dplyr::arrange(year_n) |>
