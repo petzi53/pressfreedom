@@ -833,7 +833,17 @@ countryServer <- function(id, rwb_standardized) {
                         orientation = "h", xanchor = "center", x = 0.5,
                         yanchor = "top", y = legend_y, font = list(size = 15)
                     ),
-                    margin = list(b = margin_b)
+                    # t = 40: the plotly R package's own default top
+                    # margin is only 25px, which left no clearance above
+                    # this chart's top border line (drawn via showline/
+                    # mirror in set_axis_font()) for the modebar to sit
+                    # in once displayModeBar was turned back on below —
+                    # the modebar visibly overlapped the rank panel's top
+                    # border. band_bar_chart() doesn't hit this because
+                    # it draws no border at all, so its modebar can
+                    # overlap empty space unnoticed even at the default
+                    # margin.
+                    margin = list(b = margin_b, t = 40)
                 ) |>
                 # displayModeBar = TRUE (plotly's default) matches Map/
                 # Trends' image-download affordance. This config() call is

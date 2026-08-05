@@ -278,6 +278,17 @@ export vs. whole-dataset export, and whether to attach an inline caveat
 about the 2013 score-scale discontinuity (see "Score scale-transition
 artifact (2013)" above) to any exported file.
 
+**Modebar/border overlap on the combined trend chart:** turning the
+modebar back on exposed a separate issue — the plotly R package's own
+default top margin is only 25px, too little clearance for the modebar to
+sit above the rank panel's top border line (`showline`/`mirror`, set in
+`set_axis_font()`) without visibly overlapping it. Fixed by setting an
+explicit `margin = list(t = 40, ...)` in the combined chart's final
+`plotly::layout()` call. The two small band/tier bar charts
+(`band_bar_chart()`) don't need this — they draw no panel border at all,
+so their modebar can overlap empty space at the default margin without
+being noticeable.
+
 ## Favicon (`inst/app/www/`)
 
 `inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (unlike `flagon`'s flags above). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.
