@@ -167,7 +167,8 @@ countrySidebarUI <- function(id, rwb_standardized) {
             "Clear",
             icon  = shiny::icon("times"),
             class = "btn-sm btn-outline-secondary w-100 mt-1"
-        )
+        ),
+        shiny::uiOutput(ns("download_ui"))
     )
 }
 
@@ -208,6 +209,39 @@ countryServer <- function(id, rwb_standardized) {
 
         selected <- shiny::reactive(input$country)
 
+        # CSV download button: always visible, disabled with message when no country
+        output$download_ui <- shiny::renderUI({
+            if (is.null(selected()) || selected() == "") {
+                shiny::tagList(
+                    shiny::tags$button(
+                        "Download CSV",
+                        class = "btn btn-sm btn-outline-secondary w-100 mt-1",
+                        disabled = "disabled"
+                    ),
+                    shiny::div(
+                        "No country data available for download.",
+                        class = "text-muted small mt-1"
+                    )
+                )
+            } else {
+                shiny::downloadButton(
+                    ns("download"),
+                    "Download CSV",
+                    class = "btn-sm btn-outline-secondary w-100 mt-1"
+                )
+            }
+        })
+
+        # CSV download handler
+        output$download <- shiny::downloadHandler(
+            filename = function() {
+                # Sanitize country name for filesystem: lowercase, alphanumeric only
+                country_slug <- tolower(gsub("[^a-z0-9]", "", tolower(selected())))
+                sprintf("pressfreedom_country_%s.csv", country_slug)
+            },
+            content = function(file) write_csv_with_notes(country_download_data(), file)
+        )
+
         # Only the *side of the breakpoint* matters for the trend
         # chart's layout, not the exact width — reactiveVal only
         # invalidates its subscribers when the new value differs from
@@ -225,12 +259,24 @@ countryServer <- function(id, rwb_standardized) {
 
         # This country's full history (all years, every column) — the
         # single source the stat blocks and the factors chart both
-        # filter further from.
+        # filter further from. Internal uses (stat table, band/tier charts)
+        # need rank_evolution/score_evolution for calculations.
         country_data <- shiny::reactive({
             shiny::req(selected(), selected() != "")
             rwb_standardized |>
                 dplyr::filter(country_en == selected()) |>
                 dplyr::arrange(year_n)
+        })
+
+        # Download data: country_data with previous-year comparison columns
+        # removed (rank_n_1, rank_evolution, score_n_1, score_evolution).
+        # Leaves country_data() itself untouched so internal uses still have
+        # access to the evolution columns they need.
+        country_download_data <- shiny::reactive({
+            country_data() |>
+                dplyr::select(-dplyr::any_of(
+                    c("rank_n_1", "rank_evolution", "score_n_1", "score_evolution")
+                ))
         })
 
         output$country_header <- shiny::renderUI({
