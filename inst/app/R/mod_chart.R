@@ -31,7 +31,9 @@ chartUI <- function(id, height = "calc(100vh - 105px)") {
     ns <- shiny::NS(id)
     bslib::card(
         height = height,
-        bslib::card_header(shiny::textOutput(ns("title"))),
+        bslib::card_header(
+            shiny::textOutput(ns("title"))
+        ),
         shiny::div(
             style = "position: relative; height: 100%;",
             shiny::uiOutput(ns("plot_or_placeholder"))
@@ -39,7 +41,7 @@ chartUI <- function(id, height = "calc(100vh - 105px)") {
     )
 }
 
-chartServer <- function(id, rwb_standardized, var, country) {
+chartServer <- function(id, rwb_standardized, var, country, inputs_download_data = NULL) {
     shiny::moduleServer(id, function(input, output, session) {
         ns <- session$ns
 
@@ -48,6 +50,18 @@ chartServer <- function(id, rwb_standardized, var, country) {
             shiny::req(length(country()) > 0)
             df_chart(rwb_standardized, var(), country())
         })
+        
+        # Populate the inputs module's download_data reactive whenever data changes
+        # so the download handler in inputs module can access it
+        if (!is.null(inputs_download_data)) {
+            shiny::observe({
+                shiny::req(length(country()) > 0)
+                inputs_download_data(list(
+                    data = data(),
+                    variable = var()
+                ))
+            })
+        }
 
         # Most recently clicked country (triggers navigation). Stored as
         # list(country=, nonce=) rather than a bare string: reactiveVal()
@@ -62,6 +76,8 @@ chartServer <- function(id, rwb_standardized, var, country) {
             shiny::req(length(country()) > 0, data())
             card_title(var(), country(), unique(data()$year_n))
         })
+
+
 
         output$plot_or_placeholder <- shiny::renderUI({
             msg <- if (length(country()) == 0) {

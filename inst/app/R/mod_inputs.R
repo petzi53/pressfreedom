@@ -39,12 +39,15 @@ inputsUI <- function(id, rwb_standardized) {
             "Clear",
             icon  = shiny::icon("times"),
             class = "btn-sm btn-outline-secondary w-100 mt-1"
-        )
+        ),
+        shiny::uiOutput(ns("download_ui"))
     )
 }
 
 inputsServer <- function(id, selected_country = NULL) {
     shiny::moduleServer(id, function(input, output, session) {
+        ns <- session$ns
+        
         shiny::observeEvent(input$clear, {
             shiny::updateSelectInput(session, "country", selected = character(0))
         })
@@ -72,12 +75,56 @@ inputsServer <- function(id, selected_country = NULL) {
             if (length(cnty) > 0) utils::tail(cnty, 1) else NA_character_
         })
 
-        # Return inputs as reactives
+        # CSV download button: always visible, disabled with message when no countries
+        output$download_ui <- shiny::renderUI({
+            if (length(input$country) == 0) {
+                shiny::tagList(
+                    shiny::tags$button(
+                        "Download CSV",
+                        class = "btn btn-sm btn-outline-secondary w-100 mt-2",
+                        disabled = "disabled"
+                    ),
+                    shiny::div(
+                        "No country data available for download.",
+                        class = "text-muted small mt-1"
+                    )
+                )
+            } else {
+                shiny::downloadButton(ns("download"), "Download CSV", 
+                                       class = "btn-sm btn-outline-secondary w-100 mt-2")
+            }
+        })
+        
+        # Placeholder for the download handler: will be set by chartServer()
+        # This reactive holds the current data to download
+        download_data <- shiny::reactiveVal(NULL)
+        
+        # CSV download handler: wired to the inputs module's download button
+        output$download <- shiny::downloadHandler(
+            filename = function() {
+                shiny::req(download_data())
+                n_countries <- length(input$country)
+                variable <- download_data()$variable
+                if (n_countries == 1) {
+                    country_slug <- tolower(gsub("[^a-z0-9]", "", tolower(input$country[1])))
+                    sprintf("pressfreedom_trends_%s_%s.csv", variable, country_slug)
+                } else {
+                    sprintf("pressfreedom_trends_%s_compare_countries.csv", variable)
+                }
+            },
+            content = function(file) {
+                shiny::req(download_data())
+                write_csv_with_notes(download_data()$data, file, for_trends = TRUE)
+            }
+        )
+
+        # Return inputs as reactives and the download_data reactive
         # so parent/sibling modules can consume them
         list(
             var = shiny::reactive(input$var),
             country = shiny::reactive(input$country),
-            last_country = last_country
+            last_country = last_country,
+            download_data = download_data
         )
     })
 }

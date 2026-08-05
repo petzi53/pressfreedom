@@ -303,8 +303,10 @@ server <- function(input, output, session) {
 
     # Chart module receives those reactives and the raw data, and returns
     # a reactive holding the country most recently clicked on a chart point
-    # (or NULL).
-    chart_click <- chartServer("chart", rwb_standardized, sel$var, sel$country)
+    # (or NULL). It also populates the download_data reactive from the inputs
+    # module so the download handler can access the current filtered data.
+    chart_click <- chartServer("chart", rwb_standardized, sel$var, sel$country,
+                               inputs_download_data = sel$download_data)
     shiny::observeEvent(chart_click(), {
         shiny::req(chart_click())
         selected_country(chart_click())
