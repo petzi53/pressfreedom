@@ -62,17 +62,19 @@ ui <- bslib::page_navbar(
             bslib::nav_panel_hidden("Map",    mapSidebarUI("map", rwb_standardized)),
             bslib::nav_panel_hidden("Trends", compareSidebarUI("inputs", rwb_standardized)),
             bslib::nav_panel_hidden("Country", countrySidebarUI("country", rwb_standardized)),
-            # About has no filters — just a "back to dashboard" button (see
-            # mod_about.R). Deliberately does NOT toggle the sidebar's
+            # Help and About have no filters — just a "back to dashboard" button (see
+            # mod_help.R and mod_about.R). Deliberately do NOT toggle the sidebar's
             # open/closed state on enter/leave: whatever the user had it set
             # to (open or closed) is left untouched, same as switching
             # between any other pair of tabs.
+            bslib::nav_panel_hidden("Help", helpSidebarUI("help")),
             bslib::nav_panel_hidden("About", aboutSidebarUI("about"))
         )
     ),
     bslib::nav_panel("Map",    mapMainUI("map")),
     bslib::nav_panel("Trends", compareMainUI("chart")),
     bslib::nav_panel("Country", countryMainUI("country")),
+    bslib::nav_panel("Help", helpMainUI()),
     bslib::nav_panel("About", aboutMainUI(rwb_standardized)),
     bslib::nav_spacer(),
     bslib::nav_item(
@@ -250,10 +252,14 @@ server <- function(input, output, session) {
         shiny::updateSelectInput(session, "country-country", selected = "")
     })
 
-    # About tab's "Back to Dashboard" button — no module server needed
-    # (mod_about.R is UI-only), so wired directly here alongside the
-    # title-click handler above. Namespaced manually ("about-...") since
-    # there's no moduleServer() scoping this input.
+    # Help and About tabs' "Back to Dashboard" buttons — no module server needed
+    # (mod_help.R and mod_about.R are UI-only), so wired directly here alongside the
+    # title-click handler above. Namespaced manually ("help-..." and "about-...") since
+    # there's no moduleServer() scoping these inputs.
+    shiny::observeEvent(input[["help-back_to_dashboard"]], {
+        bslib::nav_select("view", "Map")
+    })
+
     shiny::observeEvent(input[["about-back_to_dashboard"]], {
         bslib::nav_select("view", "Map")
     })
