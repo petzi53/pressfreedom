@@ -475,7 +475,10 @@ countryServer <- function(id, rwb_standardized) {
                     margin = list(t = 34, b = 60, l = 40, r = 10),
                     showlegend = FALSE
                 ) |>
-                plotly::config(displayModeBar = FALSE) |>
+                # Modebar (incl. PNG download) left at plotly's default,
+                # matching Map/Trends — previously disabled here
+                # (displayModeBar = FALSE) for a cleaner compact card, but
+                # that made image export inconsistent across views.
                 # plotly's tickfont/titlefont don't expose a `weight`
                 # property, so bold axis text is applied directly to the
                 # rendered SVG <text> elements post-draw (font-weight is
@@ -832,7 +835,13 @@ countryServer <- function(id, rwb_standardized) {
                     ),
                     margin = list(b = margin_b)
                 ) |>
-                plotly::config(displayModeBar = FALSE)
+                # displayModeBar = TRUE (plotly's default) matches Map/
+                # Trends' image-download affordance. This config() call is
+                # still required regardless of the modebar setting — see
+                # the comment above p_rank$x$config <- NULL: it's what
+                # resolves the two-panel config merge, not just what
+                # toggles the modebar.
+                plotly::config(displayModeBar = TRUE)
 
             widget
         })

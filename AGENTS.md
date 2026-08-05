@@ -254,6 +254,30 @@ space unless a user visits it and has room for much richer content
   `nav_panel_hidden("About", aboutSidebarUI("about"))` purely so the
   existing "view" -> "sidebar_view" sync observer has a panel to select.
 
+## Image download (plotly modebar)
+
+All plotly charts across the three data views (Map, Trends, Country) use
+plotly's default modebar (`displayModeBar` left at its default of `TRUE`),
+which includes the camera icon for exporting the current view as a PNG.
+Country's charts (`band_bar_chart()`'s two small bar charts, and the
+combined trend `subplot()`) previously disabled this via
+`plotly::config(displayModeBar = FALSE)`, which was an inconsistency with
+Map/Trends rather than a deliberate design decision — fixed by removing/
+flipping those calls. The combined trend chart's `plotly::config()` call
+is still needed even with the modebar back on: `plot_ly()` and
+`ggplotly()` each stamp a top-level `$x$config` that `subplot()` can't
+merge cleanly, so exactly one panel's config is kept and explicitly set
+(`displayModeBar = TRUE`) rather than stripped from both — see the inline
+comment above `p_rank$x$config <- NULL` in `mod_country.R`.
+
+A CSV/data-download button was considered and explicitly deferred (not
+implemented) — decided against for now since R-comfortable users already
+have full access via `pressfreedom.data::rwb_standardized` directly. If
+this is revisited, the open design questions are: per-view filtered
+export vs. whole-dataset export, and whether to attach an inline caveat
+about the 2013 score-scale discontinuity (see "Score scale-transition
+artifact (2013)" above) to any exported file.
+
 ## Favicon (`inst/app/www/`)
 
 `inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (unlike `flagon`'s flags above). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.
