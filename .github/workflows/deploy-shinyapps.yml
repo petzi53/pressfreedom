@@ -9,6 +9,14 @@ jobs:
   deploy:
     name: Deploy Shiny app
     runs-on: ubuntu-latest
+    env:
+      # Authenticates GitHub API calls made by renv/remotes when resolving
+      # GitHub-only Remotes (flagon, ggbump, pressfreedom.data). Without
+      # this, unauthenticated API requests are capped at 60/hour and are
+      # often already exhausted on shared GitHub Actions runners, causing
+      # "failed to resolve remote ... error code 22" (HTTP error, usually
+      # a 403 rate limit) regardless of which branch is specified.
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
