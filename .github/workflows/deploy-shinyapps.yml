@@ -93,12 +93,20 @@ jobs:
           )
 
           # Deploy the app from inst/app
+          # dependencyResolution = "library" (not the "strict" default):
+          # "strict" reconciles renv.lock against the local library and
+          # aborts if they don't match exactly. This job intentionally
+          # installs a minimal, explicit runtime package set via pak
+          # rather than restoring the full (dev-tooling-heavy) renv.lock,
+          # so the two will never match. "library" tells rsconnect to
+          # resolve dependencies from what's actually installed instead.
           rsconnect::deployApp(
             appDir = "inst/app",
             appName = "pressfreedom",
             account = Sys.getenv("SHINYAPPS_ACCOUNT"),
             appId = as.numeric(Sys.getenv("SHINYAPPS_APPID")),
-            forceUpdate = TRUE
+            forceUpdate = TRUE,
+            dependencyResolution = "library"
           )
 
           cat("✓ Deployment to shinyapps.io successful\n")
