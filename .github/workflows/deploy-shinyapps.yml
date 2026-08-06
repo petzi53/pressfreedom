@@ -15,6 +15,11 @@ jobs:
       # unauthenticated API requests are capped at 60/hour, easily exhausted
       # on shared runners.
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # This job deliberately does not restore from renv.lock (see comment
+      # below), so silence renv's autoloader — it activates on every
+      # Rscript call via .Rprofile and would otherwise print a distracting
+      # (harmless, in this job) "project is out-of-sync" message.
+      RENV_CONFIG_AUTOLOADER_ENABLED: false
 
     steps:
       - name: Checkout repository
@@ -79,8 +84,10 @@ jobs:
           SHINYAPPS_APPID: ${{ secrets.SHINYAPPS_APPID }}
         run: |
           # Set up rsconnect credentials
+          # NB: setAccountInfo()'s account-name parameter is `name`, not
+          # `account` (confirmed via args(rsconnect::setAccountInfo)).
           rsconnect::setAccountInfo(
-            account = Sys.getenv("SHINYAPPS_ACCOUNT"),
+            name = Sys.getenv("SHINYAPPS_ACCOUNT"),
             token = Sys.getenv("SHINYAPPS_TOKEN"),
             secret = Sys.getenv("SHINYAPPS_SECRET")
           )
