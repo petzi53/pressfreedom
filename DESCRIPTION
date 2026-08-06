@@ -32,7 +32,7 @@ Suggests:
 Config/testthat/edition: 3
 Remotes:
     coolbutuseless/flagon,
-    davidsjoberg/ggbump,
+    davidsjoberg/ggbump@main,
     petzi53/pressfreedom.data
 URL: https://github.com/petzi53/pressfreedom, https://www.peter-baumgartner.net/pressfreedom/
 BugReports: https://github.com/petzi53/pressfreedom/issues
