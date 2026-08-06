@@ -10,12 +10,10 @@ jobs:
     name: Deploy Shiny app
     runs-on: ubuntu-latest
     env:
-      # Authenticates GitHub API calls made by renv/remotes when resolving
-      # GitHub-only Remotes (flagon, ggbump, pressfreedom.data). Without
-      # this, unauthenticated API requests are capped at 60/hour and are
-      # often already exhausted on shared GitHub Actions runners, causing
-      # "failed to resolve remote ... error code 22" (HTTP error, usually
-      # a 403 rate limit) regardless of which branch is specified.
+      # Authenticates GitHub API calls made by pak when resolving GitHub-only
+      # remotes (flagon, ggbump, pressfreedom.data). Without this,
+      # unauthenticated API requests are capped at 60/hour, easily exhausted
+      # on shared runners.
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -33,24 +31,44 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
-      - name: Restore renv cache
+      - name: Cache R packages
         uses: actions/cache@v4
         with:
-          path: ~/.cache/R/renv
-          key: renv-${{ runner.os }}-${{ hashFiles('renv.lock') }}
-          restore-keys: |
-            renv-${{ runner.os }}-
+          path: ${{ env.R_LIBS_USER }}
+          # Cache key is scoped to this workflow file: any change to the
+          # explicit package list below invalidates the cache automatically.
+          key: deploy-shinyapps-${{ runner.os }}-${{ hashFiles('.github/workflows/deploy-shinyapps.yml') }}
 
-      - name: Install renv and restore dependencies
+      - name: Install app runtime dependencies
         shell: Rscript {0}
         run: |
-          install.packages("renv")
-          renv::restore()
+          install.packages("pak")
 
-      - name: Install rsconnect
-        shell: Rscript {0}
-        run: |
-          install.packages("rsconnect")
+          # Deliberately NOT using renv::restore() here: the project's
+          # renv.lock is a full snapshot of Peter's local dev library
+          # (type = "all"), which includes devtools/testthat/pkgdown and
+          # their transitive Suggests (e.g. magick, which needs system
+          # ImageMagick libs this runner doesn't have). None of that is
+          # needed to run the app. Instead, install exactly the runtime
+          # packages the app uses, matching the "Dependencies" table in
+          # AGENTS.md (Imports + the Suggests actually loaded by inst/app/).
+          pak::pkg_install(c(
+            # Imports
+            "shiny",
+            "petzi53/pressfreedom.data",
+            # Suggests actually used at runtime by inst/app/
+            "bslib",
+            "dplyr",
+            "ggplot2",
+            "davidsjoberg/ggbump",
+            "plotly",
+            "RColorBrewer",
+            "coolbutuseless/flagon",
+            "countrycode",
+            "htmlwidgets",
+            # Deployment tool itself
+            "rsconnect"
+          ))
 
       - name: Deploy to shinyapps.io
         shell: Rscript {0}
