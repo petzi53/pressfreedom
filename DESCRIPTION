@@ -26,6 +26,7 @@ Suggests:
     ggbump,
     ggplot2,
     htmlwidgets,
+    pkgdown,
     plotly,
     RColorBrewer,
     testthat (>= 3.0.0)
