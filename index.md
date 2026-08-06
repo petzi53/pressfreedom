@@ -1,7 +1,7 @@
 # pressfreedom
 
 An interactive Shiny dashboard for exploring the **Reporters Without
-Borders (RSF) Press Freedom Index**, 2002–present, across countries,
+Borders (RSF) Press Freedom Index**, 2002–2026, across countries,
 regions, and time — including a five-dimension breakdown (political,
 economic, legal, social, safety) available from 2022 onward.
 
