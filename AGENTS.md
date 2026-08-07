@@ -2,6 +2,10 @@
 
 This file provides context and guidance for AI agents working on the `pressfreedom` R package.
 
+## Latest Update
+
+**Deployment (2026-08-07):** The pressfreedom dashboard is deployed to **Posit Connect Cloud** at https://connect.posit.cloud/pbaumgartner/content/019fdb8f-3598-1f52-15a3-15d9bd034207/. **Important:** There is a distinction between two Posit platforms: **Posit Cloud** (phasing out, linked via GitHub OAuth) and **Posit Connect Cloud** (the correct modern platform). Access the pbaumgartner account at https://connect.posit.cloud with Google login, not GitHub.
+
 ## CRITICAL: One Question at a Time (UI Glitch Workaround)
 
 **Requirement:** NEVER ask multiple questions in a single response. Ask only one question per response, whether using `AskUser()` or inline clarifying questions.
@@ -470,11 +474,17 @@ image_write(image_scale(img, "32x32"), path = "inst/app/www/favicon.png", format
 
 **Clean-library verification note (2026-08-02):** after adding the `Remotes:` line above, a first re-test of `remotes::install_github("petzi53/pressfreedom")` still failed with `pressfreedom.data` skipped/not found. This turned out to be an unpushed-commit issue, not a limitation of `remotes` or `pak`: the fix existed only in local commits, so `install_github()` was fetching a stale `DESCRIPTION` from GitHub (still requiring `pressfreedom.data (>= 0.1.0)` with no `Remotes:` entry for it). After `git push`, both `remotes::install_github()` and `pak::pak()`/`pak::pkg_install()` resolved and installed the full GitHub dependency chain (`pressfreedom.data`, `flagon`, `ggbump`) correctly on a genuinely clean library. `remotes::install_github()` may print benign `skipping pax global extended headers` warnings from `untar2` when unpacking GitHub-generated tarballs — a well-known cosmetic quirk unrelated to this package's configuration (`pak` doesn't show it because it uses a different, libarchive-based extraction path). Takeaway: when a `Remotes:`/dependency-resolution fix appears not to work, check that local commits were actually pushed before suspecting the tooling.
 
-## Deploying to shinyapps.io (manual)
+## Deploying to Posit Connect Cloud (manual)
 
-Deployment to https://petzi53.shinyapps.io/pressfreedom/ is **manual, on purpose** — not automated via GitHub Actions.
+Deployment to https://connect.posit.cloud/pbaumgartner/content/019fdb8f-3598-1f52-15a3-15d9bd034207/ is **manual, by design** — not automated via GitHub Actions.
 
-**Background (2026-08-06):** a GitHub Actions workflow to auto-redeploy on release tags was attempted and abandoned. It got authentication and file bundling working, but stalled at `rsconnect::deployApp()`'s dependency-capture step: `rsconnect` scans the *entire project*, not just `inst/app/`, to build its dependency graph. For a Shiny app nested inside an R package (this project's structure), that whole-repo scan wanted `pressfreedom` itself installed plus transitive packages (`cpp11`, `progress`) not declared anywhere in `DESCRIPTION` — an architectural mismatch between `rsconnect`'s "single app folder" assumption and a package-that-contains-an-app layout. Since redeployment happens roughly once a year (see "Annual Update Workflow" below), the automation wasn't worth the ongoing maintenance burden and was removed. If revisiting this later, a hand-written `manifest.json` (bypassing `rsconnect`'s auto-detect scan entirely) is the most promising unexplored option.
+**Background (2026-08-06→2026-08-07):** A GitHub Actions workflow to auto-redeploy on release tags was attempted and abandoned. It got authentication and file bundling working, but stalled at `rsconnect::deployApp()`'s dependency-capture step: `rsconnect` scans the *entire project*, not just `inst/app/`, to build its dependency graph. For a Shiny app nested inside an R package (this project's structure), that whole-repo scan wanted `pressfreedom` itself installed plus transitive packages (`cpp11`, `progress`) not declared anywhere in `DESCRIPTION` — an architectural mismatch between `rsconnect`'s "single app folder" assumption and a package-that-contains-an-app layout. Since redeployment happens roughly once a year (see "Annual Update Workflow" below), the automation wasn't worth the ongoing maintenance burden and was removed. If revisiting this later, a hand-written `manifest.json` (bypassing `rsconnect`'s auto-detect scan entirely) is the most promising unexplored option.
+
+**Migration note (2026-08-07):** shinyapps.io is being phased out by Posit. The app was successfully migrated to **Posit Connect Cloud** (https://connect.posit.cloud), which provides equivalent functionality with better long-term support. The first deployment occurred on 2026-08-07 and the app is now live at the URL above. **Note:** Confusion arose because GitHub OAuth linked the pbaumgartner account to the deprecated Posit Cloud platform (phasing out) rather than Posit Connect Cloud. The correct platform is Posit Connect Cloud (https://connect.posit.cloud); log in with Google authentication to access the pbaumgartner account.
+
+**Prerequisites:**
+1. Posit Connect Cloud account (pbaumgartner) at https://connect.posit.cloud, accessible via Google login
+2. Local `rsconnect` package installed and authenticated via `rsconnect::connectCloudUser()` (already done as of 2026-08-07)
 
 **Manual deployment steps**, after `pressfreedom.data` publishes a new data release and this package has a new tag on GitHub:
 
@@ -483,8 +493,8 @@ Deployment to https://petzi53.shinyapps.io/pressfreedom/ is **manual, on purpose
 3. Run `devtools::document()` and `devtools::check()` — should be 0 errors, 0 warnings, 0 notes.
 4. Run `renv::snapshot(type = "all")` to refresh `renv.lock` with the updated dependency versions.
 5. Sanity-check the app locally: `pressfreedom::run_app()` (or `devtools::load_all()` then `run_app()`), confirm the Map/Trends/Country tabs show the new data year.
-6. Deploy: `rsconnect::deployApp("inst/app", appName = "pressfreedom", account = "petzi53")`. This updates the existing shinyapps.io application in place (appId 17662203) — no new app is created.
-7. Verify the live app at https://petzi53.shinyapps.io/pressfreedom/ — check the new year appears in Map/Trends/Country and the About tab's data-year range.
+6. Deploy: `rsconnect::deployApp("inst/app", appName = "pressfreedom", launch.browser = TRUE)`. This updates the existing Connect Cloud application in place — no new app or account specification is needed (rsconnect remembers the previous deployment metadata).
+7. Verify the live app at https://connect.posit.cloud/pbaumgartner/content/019fdb8f-3598-1f52-15a3-15d9bd034207/ — check the new year appears in Map/Trends/Country and the About tab's data-year range.
 8. Commit and push the `DESCRIPTION`/`renv.lock` changes, then tag the new package version (`git tag vX.Y.Z && git push --tags`).
 
 ## Annual Update Workflow
@@ -496,7 +506,7 @@ Each May, RWB publishes a new index. To update the dashboard:
 3. Increment this package's own version in `DESCRIPTION`.
 4. Run `devtools::document()` and `devtools::check()`.
 5. Run `renv::snapshot(type = "all")`.
-6. Deploy manually to shinyapps.io — see "Deploying to shinyapps.io (manual)" above.
+6. Deploy manually to Posit Connect Cloud — see "Deploying to Posit Connect Cloud (manual)" above.
 7. Once dimension data (2022+) reaches roughly a decade of history (~2032), revisit whether Score/Rank-only scoping in the Trends variable picker (see "Dimension data (2022+): per-view treatment" above) should be relaxed.
 
 ## Coding and Workflow Standards
