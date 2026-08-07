@@ -7,7 +7,7 @@ social, safety) available from 2022 onward.
 
 ## Two ways to use it
 
-- **[Posit Connect Cloud](https://connect.posit.cloud/pbaumgartner/content/019fdb8f-3598-1f52-15a3-15d9bd034207/)**
+- **[pbaumgartner-pressfreedom.share.connect.posit.cloud](https://pbaumgartner-pressfreedom.share.connect.posit.cloud/)**
   — for casual, interactive exploration. No install needed, full feature support,
   and stable long-term hosting.
 - **As an R package** — for heavy exploration, repeated sessions, or
