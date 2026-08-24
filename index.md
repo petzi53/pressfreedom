@@ -7,12 +7,12 @@ economic, legal, social, safety) available from 2022 onward.
 
 ## Two ways to use it
 
-- **[petzi53.shinyapps.io/pressfreedom](https://petzi53.shinyapps.io/pressfreedom/)**
-  — for casual, interactive exploration. No install needed, but subject
-  to shinyapps.io’s usage limits.
+- **[pbaumgartner-pressfreedom.share.connect.posit.cloud](https://pbaumgartner-pressfreedom.share.connect.posit.cloud/)**
+  — for casual, interactive exploration. No install needed, full feature
+  support, and stable long-term hosting.
 
 - **As an R package** — for heavy exploration, repeated sessions, or
-  offline use, avoiding those limits entirely:
+  offline use, avoiding any rate limits entirely:
 
   ``` r
 
@@ -43,7 +43,7 @@ methodology, and limitations.
     pressfreedom/
     ├── R/run_app.R          # Exported run_app() launcher
     ├── inst/app/
-    │   ├── app.R            # Shiny entry point (also deployed as-is to shinyapps.io)
+    │   ├── app.R            # Shiny entry point (also deployed as-is to Posit Connect Cloud)
     │   └── R/                # Modules: map, trends chart, country profile, inputs, flags, about, helpers
     └── DESCRIPTION
 

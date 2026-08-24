@@ -53,9 +53,9 @@
 <h2 id="two-ways-to-use-it">Two ways to use it<a class="anchor" aria-label="anchor" href="#two-ways-to-use-it"></a>
 </h2>
 <ul>
-<li><p><strong><a href="https://petzi53.shinyapps.io/pressfreedom/" class="external-link">petzi53.shinyapps.io/pressfreedom</a></strong> — for casual, interactive exploration. No install needed, but subject to shinyapps.io’s usage limits.</p></li>
+<li><p><strong><a href="https://pbaumgartner-pressfreedom.share.connect.posit.cloud/" class="external-link">pbaumgartner-pressfreedom.share.connect.posit.cloud</a></strong> — for casual, interactive exploration. No install needed, full feature support, and stable long-term hosting.</p></li>
 <li>
-<p><strong>As an R package</strong> — for heavy exploration, repeated sessions, or offline use, avoiding those limits entirely:</p>
+<p><strong>As an R package</strong> — for heavy exploration, repeated sessions, or offline use, avoiding any rate limits entirely:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"petzi53/pressfreedom"</span><span class="op">)</span></span>
 <span><span class="co"># or: pak::pak("petzi53/pressfreedom")</span></span>
@@ -77,7 +77,7 @@
 <pre><code>pressfreedom/
 ├── R/run_app.R          # Exported run_app() launcher
 ├── inst/app/
-│   ├── app.R            # Shiny entry point (also deployed as-is to shinyapps.io)
+│   ├── app.R            # Shiny entry point (also deployed as-is to Posit Connect Cloud)
 │   └── R/                # Modules: map, trends chart, country profile, inputs, flags, about, helpers
 └── DESCRIPTION</code></pre>
 </div>
