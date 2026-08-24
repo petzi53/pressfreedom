@@ -17,18 +17,18 @@ Depends:
     R (>= 3.5)
 Imports:
     pressfreedom.data (>= 0.2.0),
-    shiny
-Suggests:
+    shiny,
     bslib,
-    countrycode,
     dplyr,
-    flagon,
-    ggbump,
+    plotly,
     ggplot2,
     htmlwidgets,
-    pkgdown,
-    plotly,
     RColorBrewer,
+    ggbump,
+    countrycode,
+    flagon
+Suggests:
+    pkgdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Remotes:
