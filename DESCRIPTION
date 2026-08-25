@@ -16,7 +16,7 @@ RoxygenNote: 8.0.0
 Depends: 
     R (>= 3.5)
 Imports:
-    pressfreedom.data (>= 0.2.0),
+    pressfreedom.data (>= 0.3.0),
     shiny,
     bslib,
     dplyr,
@@ -31,7 +31,5 @@ Suggests:
     pkgdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-Remotes:
-    petzi53/pressfreedom.data
 URL: https://github.com/petzi53/pressfreedom, https://www.peter-baumgartner.net/pressfreedom/
 BugReports: https://github.com/petzi53/pressfreedom/issues
