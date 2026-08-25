@@ -803,30 +803,6 @@
       "Maintainer": "Winston Chang <winston@posit.co>",
       "Repository": "CRAN"
     },
-    "flagon": {
-      "Package": "flagon",
-      "Version": "0.1.0",
-      "Source": "GitHub",
-      "Type": "Package",
-      "Title": "Flags of the World",
-      "Author": "mikefc@coolbutuseless.com",
-      "Maintainer": "mikefc <mikefc@coolbutuseless.com>",
-      "Description": "Flags of the world in PNG and SVG format.",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "LazyData": "true",
-      "RoxygenNote": "7.1.0",
-      "Depends": [
-        "R (>= 2.10)"
-      ],
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "flagon",
-      "RemoteUsername": "coolbutuseless",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "dd1e869e9128447aee6d08f345ada414b23e50dd",
-      "NeedsCompilation": "no"
-    },
     "fontawesome": {
       "Package": "fontawesome",
       "Version": "0.5.3",
@@ -935,38 +911,6 @@
       "Author": "Hadley Wickham [aut, cre] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Max Kuhn [aut], Davis Vaughan [aut], Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
-    },
-    "ggbump": {
-      "Package": "ggbump",
-      "Version": "0.1.99999",
-      "Source": "GitHub",
-      "Type": "Package",
-      "Title": "Bump Chart and Sigmoid Curves",
-      "Author": "David Sjoberg",
-      "Maintainer": "David Sjoberg <dav.sjob@gmail.com>",
-      "Description": "A geom for ggplot to create bump plots. Can be good to use for showing rank over time.",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "URL": "https://github.com/davidsjoberg/ggbump",
-      "BugReports": "https://github.com/davidsjoberg/ggbump/issues",
-      "Imports": [
-        "ggplot2",
-        "dplyr",
-        "purrr",
-        "tidyr",
-        "magrittr"
-      ],
-      "RoxygenNote": "7.2.1",
-      "Suggests": [
-        "testthat (>= 2.1.0)"
-      ],
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "ggbump",
-      "RemoteUsername": "davidsjoberg",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "fe6d5c7a974d4ae421b295cf81974394df481111",
-      "NeedsCompilation": "no"
     },
     "ggplot2": {
       "Package": "ggplot2",
