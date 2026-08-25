@@ -1,0 +1,97 @@
+# Third-Party Vendored Code and Assets
+
+This package includes the following third-party components, each licensed under
+compatible open-source licenses as noted below.
+
+## 1. Flag Icons (SVG)
+
+**Source:** https://github.com/lipis/flag-icons  
+**Version:** 7.5.0 (tag v7.5.0, commit 086f7e97d657358203916dbe84f61c2bccaa81eb, 2026-05-29)  
+**License:** MIT (see below)  
+**Location:** `inst/app/www/flags/` (4x3 aspect ratio variants)
+
+The flag SVG files are vendored to eliminate the dependency on the `flagon` R
+package (a GitHub-only wrapper), which itself bundled flag-icons assets. A subset
+of flag-icons' full 270+ country/region flag SVGs was vendored based on the actual
+ISO 3166-1 alpha-2 codes used by `pressfreedom.data::rwb_standardized`.
+
+### MIT License (flag-icons)
+```
+Copyright (c) 2023 Lipis <info@lipis.dev>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 2. ggbump Geometry Functions
+
+**Source:** https://github.com/davidsjoberg/ggbump  
+**Version:** Main branch (commit fe6d5c7, 2025)  
+**License:** MIT (see below)  
+**Location:** `inst/app/R/geom_bump_vendored.R`  
+**Author:** David Sjöberg
+
+The core bump-chart geometry functions (`sigmoid()`, `rank_sigmoid()`, 
+`geom_bump()`, and their supporting ggproto objects) are vendored to eliminate
+the dependency on the `ggbump` R package, which was archived from CRAN on
+2025-12-04. Functions and ggproto classes are renamed with a `pf_` prefix
+(e.g., `pf_geom_bump()`, `PfStatBump`) to avoid conflicts if ggbump is ever
+revived as a dependency.
+
+### MIT + FILE LICENSE (ggbump)
+```
+YEAR: 2020
+COPYRIGHT HOLDER: David Sjöberg
+```
+
+Full license:
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## Summary
+
+Both vendored components are MIT-licensed. Pressfreedom itself is also
+MIT-licensed, making these vendored components fully compatible. The vendoring
+resolves two problematic runtime dependencies:
+
+1. **flagon** (GitHub-only, wraps flag-icons) → replaced by direct SVG assets
+2. **ggbump** (GitHub-only, archived from CRAN) → replaced by vendored functions
+
+This eliminates external GitHub dependencies for CRAN review while maintaining
+the original functionality and appearance of the application.
