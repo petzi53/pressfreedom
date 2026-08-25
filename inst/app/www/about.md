@@ -38,4 +38,4 @@ Found a bug, or have a question about the data? [Open an issue on GitHub](https:
 
 **Software:**
 
-Built with R, Shiny, bslib, plotly, ggplot2, ggbump, and flagon.
+Built with R, Shiny, bslib, plotly, and ggplot2, with optional enhancements from ggbump (smoother rank-trend curves) and flagon (country flag icons) when installed.

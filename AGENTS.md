@@ -85,7 +85,7 @@ pressfreedom/
 │   │                   # navset wiring (5 tabs: Map, Trends, Country, Help, About)
 │   └── R/
 │       ├── helpers.R      # df_chart(), card_title()
-│       ├── flags.R        # iso3 -> flagon flag-code mapping, <img>/emoji helpers
+│       ├── flags.R        # iso3 -> vendored-flags mapping, <img>/emoji helpers
 │       ├── mod_inputs.R   # compareSidebarUI() / inputsServer() — Trends sidebar
 │       ├── mod_chart.R    # compareMainUI() / chartServer() — Trends plotly chart
 │       ├── mod_map.R      # mapSidebarUI() / mapMainUI() / mapServer() — Map view
@@ -106,8 +106,8 @@ pressfreedom/
 The app uses a fully modular design (`inst/app/`), built on `bslib::page_navbar()` with a single `id = "view"` navset switching between three `nav_panel()`s wired in `app.R`: **Map**, **Trends**, **Country**. `page_navbar()`'s installed version (0.11.0) has no per-`nav_panel()` `sidebar =` argument — only one page-level `sidebar =`, shared across all panels — so per-view sidebar *content* is achieved with a `navset_hidden(id = "sidebar_view")` inside that single sidebar, kept in sync with the visible navbar tabs via a `nav_select("sidebar_view", input$view)` observer in the server.
 
 - **`mod_map`** — choropleth (`plotly::plot_geo()`) colored by Score, Rank, or a 2022+ dimension. Year choices react to both `zone` and `metric` (dimensions restrict to 2022+, score to 2013+). Score-like metrics use RSF's real 5-class band classification; Rank uses percentile tiers — both exposed as independent `checkboxGroupInput` toggles that grey out (not remove) unchecked bands. See "Map score/rank bands" below.
-- **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → `ggbump` bump chart converted via `ggplotly()`. All interactive behavior (hover-dimming and click-to-navigate) is handled client-side via JavaScript (`onRender`) — see "Client-side JavaScript approach for chart interactivity" below for why and how.
-- **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2026) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+`ggbump` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
+- **`mod_chart`** (Trends) — renders a `plotly` card, reused in two contexts: the standalone Trends view (multi-country, `show_nav = TRUE`) and embedded in the Country view in compact mode for a single country (`show_nav = FALSE`). Score → scatter line chart; Rank → vendored `pf_geom_bump()` bump chart converted via `ggplotly()`. All interactive behavior (hover-dimming and click-to-navigate) is handled client-side via JavaScript (`onRender`) — see "Client-side JavaScript approach for chart interactivity" below for why and how.
+- **`mod_country`** — flag/name header; an overview card with a horizontal Rank/Score stat table (current/best/worst/mean-or-median/biggest advance/biggest decline) plus two small band/tier count bar charts (score bands via `rsf_band()`, rank tiers via `rank_tier()` with a per-year `max_rank`, both reused from `mod_map.R`); and a trend row with two bespoke combined charts — Score (+ the 5 context dimensions, 2022–2026) and Rank (+ the 5 dimension-rank columns, `rank_pol` etc.) — merged via `plotly::subplot()` with one deduplicated, floating legend (dimension traces share a `legendgroup` across both panels; only the score panel's copy sets `showlegend = TRUE`). These are hand-built `plot_ly()`/`ggplot2`+vendored `pf_geom_bump()` calls local to `mod_country.R`, not a reuse of `mod_chart.R` — see "Dimension data (2022+): per-view treatment" below for why.
 - **`mod_inputs`** (Trends sidebar) — `selectInput`s for variable (Score/Rank only — dimensions intentionally excluded, see below) and country (multiple selection).
 - **`helpers.R`** — `df_chart()` filters/prepares data; `card_title()` builds the dynamic card header; `csv_notes()` and `write_csv_with_notes()` generate and export data with dynamic caveats (see "CSV data download per view" below).
 - **`flags.R`** — maps `rwb_standardized$iso` (alpha-3) to `flagon`'s alpha-2 flag codes; see "Flags (`flagon`)" below.
@@ -186,7 +186,7 @@ This design eliminates the timing issue and makes hover-dimming snappier. Do **n
 
 #### Trends tooltip content and the bump chart's legend dedup
 
-Both Trends chart types show a 3-line hover tooltip — flag emoji + country name, `Year: <n>`, and `Score:`/`Rank: <value>` — built as an explicit `hover_text` column (`flag_emoji(iso)` + `country_en` + `year_n` + the metric value) rather than relying on plotly's default x/y/name hover. The **score** branch is native `plot_ly()`, so this is direct: `text = ~hover_text, hoverinfo = "text"`. The **rank** branch goes through `ggplot2` + `ggbump::geom_bump()` + `ggplotly()`, which is more constrained:
+Both Trends chart types show a 3-line hover tooltip — flag emoji + country name, `Year: <n>`, and `Score:`/`Rank: <value>` — built as an explicit `hover_text` column (`flag_emoji(iso)` + `country_en` + `year_n` + the metric value) rather than relying on plotly's default x/y/name hover. The **score** branch is native `plot_ly()`, so this is direct: `text = ~hover_text, hoverinfo = "text"`. The **rank** branch goes through `ggplot2` + vendored `pf_geom_bump()` + `ggplotly()`, which is more constrained:
 
 - `hover_text` is mapped via `ggplot2::aes(text = hover_text)` **only on `geom_point()`** (the real yearly data points), not on `geom_bump()` (a stat-transformed, interpolated curve whose intermediate rows aren't real year/rank pairs — mapping `text` there would show misleading values). `ggplotly(p, tooltip = "text")` then uses that mapping.
 - Because `geom_bump()`'s line layer has no `text` aes, `ggplotly()` would otherwise show an empty/`NA` hover box when hovering the connecting curve between two yearly points. Fixed by identifying line-mode traces post-hoc and disabling their hover entirely: `plotly::style(p_final, hoverinfo = "none", traces = line_traces)` where `line_traces <- which(vapply(p_final$x$data, function(tr) identical(tr$mode, "lines"), logical(1)))`.
@@ -260,20 +260,22 @@ Dimension scores (`political_context`, `economic_context`, `legal_context`, `soc
 
 **Revisit at a future annual update**: as dimensions accumulate more years — a decade's worth by ~2032 — reconsider whether they've earned a slot in the Trends variable picker too. Not done as of this writing (2026 is the 5th year of dimension data).
 
-## Flags (`flagon`)
+## Flags (vendored from `flag-icons`)
 
-Flags are served via [`flagon`](https://github.com/coolbutuseless/flagon) (GitHub-only; `Remotes:` in `DESCRIPTION`), which installs PNG/SVG files on disk indexed by **2-letter ISO 3166-1 alpha-2** codes. `app.R` calls `shiny::addResourcePath("flags", system.file("png", package = "flagon"))` once at startup so `<img src="flags/xx.png">` works anywhere in the app.
+Flags are now **vendored SVG files** from [`lipis/flag-icons`](https://github.com/lipis/flag-icons) (v7.5.0, commit 086f7e97, 2026-05-29), stored in `inst/app/www/flags/` and auto-served by Shiny's built-in static-file serving (same mechanism as `favicon.ico`/`favicon.png`). This eliminates the `flagon` R package dependency, which was a GitHub-only wrapper around flag-icons' own assets.
+
+SVG format provides crisper rendering at arbitrary sizes and smaller file sizes than the PNG variant that `flagon` used. A subset of ~270 SVGs was vendored based on actual ISO 3166-1 alpha-2 codes used by the dataset (see Implementation section below).
 
 `rwb_standardized$iso` is **3-letter** and is **not a clean 1:1 country mapping** — `flags.R`'s `iso3_to_flag_code()` resolves the ~190 standard cases via `countrycode::countrycode(iso3, "iso3c", "iso2c")` and applies a manual override table for the rest:
 
 | Issue | Example `iso` value(s) | Resolution |
 | :-- | :-- | :-- |
-| Kosovo uses two different non-standard codes across years | `XKX`, `XKO` | Mapped to `xk` (flagon has this code) |
+| Kosovo uses two different non-standard codes across years | `XKX`, `XKO` | Mapped to `xk` (vendored flag-icons has this code) |
 | Northern Cyprus | `CTU` | No flag (no ISO flag code exists) |
 | OECS (a regional organization, not a country) | `CSS`, `XCD` | No flag (no single national flag applies) |
 | Israel territory sub-entries | `ISR1`, `ISR2`, `ISR3` | No flag (ambiguous — unlike the US splits below) |
 | US territory sub-entries | `USA1`, `USA2`, `USA_I` | Mapped to `us` (unambiguous, unlike the Israel splits) |
-| Defunct historical states (old years only) | `YUG`, `SCG` | No flag (not in flagon's source) |
+| Defunct historical states (old years only) | `YUG`, `SCG` | No flag (not in vendored flag-icons set) |
 
 Anything else unmapped falls back to `NA` → no flag image / no emoji, rather than a broken image or an error. Plotly hover templates only support a small HTML subset and don't reliably render `<img>`, so the map tooltip uses `flag_emoji()` (Unicode regional-indicator emoji) instead of `flag_img_tag()`; the Country view header and Trends' click popover use the real `<img>` version since they render actual HTML.
 
@@ -435,7 +437,7 @@ being noticeable.
 
 ## Favicon (`inst/app/www/`)
 
-`inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (unlike `flagon`'s flags above). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.
+`inst/app/www/favicon.ico` and `inst/app/www/favicon.png` are generated artifacts, not source files — regenerate them from `man/figures/logo.png` if the logo ever changes, rather than hand-editing. Shiny serves `inst/app/www/` automatically as static content because it's a `www/` folder sitting next to `app.R`; no `addResourcePath()` call is needed for it (flags use the same mechanism now that they're vendored). `app.R`'s `header` `tagList` links both formats via `tags$head(tags$link(rel = "icon", ...))` — `.ico` for broad/legacy browser support, `.png` as the modern fallback.
 
 Regeneration command (requires the `magick` package — install with `install.packages("magick")` if missing):
 
@@ -452,27 +454,44 @@ image_write(image_scale(img, "32x32"), path = "inst/app/www/favicon.png", format
 
 ## Dependencies
 
-`pressfreedom.data` and `shiny` are the only packages in `Imports` — `pressfreedom.data` supplies the `rwb_standardized` dataset (loaded live at app startup, not bundled), and `shiny` is used directly in `R/run_app.R`. All visualization/data-support packages are in `Suggests`:
+**Note (2026-08-25): Vendored dependencies.** As of this session, `ggbump` and flag-icons (previously wrapped by `flagon`) are now **vendored directly** into this package. Both have been removed from `DESCRIPTION`'s `Imports`/`Suggests` and `Remotes` entries (see below for details). This resolves all GitHub-only dependency issues and simplifies CRAN submission.
 
 | Package | Role |
 | :--- | :--- |
-| `pressfreedom.data` | Source of the `rwb_standardized` dataset (Imports) |
-| `shiny` | Web framework (Imports) |
+| `pressfreedom.data` | Source of the `rwb_standardized` dataset |
+| `shiny` | Web framework |
 | `bslib` | Bootstrap UI (`page_navbar`, `card`, `navset_hidden`) |
 | `dplyr` | Data filtering in modules |
-| `ggplot2` | Bump chart base layer (Trends' Rank view) |
-| `ggbump` | `geom_bump()` for the rank bump chart (GitHub: `davidsjoberg/ggbump`) |
 | `plotly` | Interactive charts (Trends, Map, Country's stat-bar and combined trend charts) |
-| `RColorBrewer` | Color palettes (Trends line colors, Country's dimension colors) |
-| `flagon` | Flag PNG/SVG assets (GitHub: `coolbutuseless/flagon`) |
-| `countrycode` | iso3 → iso2 lookups for flags |
+| `ggplot2` | Base graphics layer (including for vendored `pf_geom_bump()`) |
 | `htmlwidgets` | Client-side JS hooks (`onRender`) for chart interactivity |
+| `RColorBrewer` | Color palettes (Trends line colors, Country's dimension colors) |
+| `countrycode` | iso3 → iso2 lookups for flags |
+| `tidyr` | Used by vendored `pf_rank_sigmoid()` function (from ggbump) |
+| `purrr` | Used by vendored `pf_rank_sigmoid()` function (from ggbump) |
+| `ggbump` | ⬜ **VENDORED** — `pf_geom_bump()` for rank bump charts (see LICENSE.note) |
+| `flag-icons` | ⬜ **VENDORED** — SVG assets in `inst/app/www/flags/` (see LICENSE.note) |
 
-`ggbump` and `flagon` are not on CRAN; both are listed under `Remotes:` in `DESCRIPTION`, which `remotes::install_github()` and `pak::pak()` read automatically to pull in GitHub-only dependencies — no separate manual install step should be needed for end users.
+All remaining packages in `Imports` are available on CRAN (including `tidyr` and `purrr`, which are now needed for the vendored `pf_rank_sigmoid()` function).
 
-**Temporary: `petzi53/pressfreedom.data` in `Remotes:` (remove once CRAN accepts it).** `pressfreedom.data` was submitted to CRAN but is still pending review as of this writing (2026-08-02). Verified via `remotes::install_github("petzi53/pressfreedom")` on 2026-08-02: with no `Remotes:` entry for it, the dependency resolver printed `Skipping 1 packages not available: pressfreedom.data` and silently continued — the install only "worked" because a satisfying local copy (0.2.0) already existed from prior dev work. On a genuinely clean library this would leave `pressfreedom.data` uninstalled and `run_app()`'s `requireNamespace()` guard would then fail. Added `petzi53/pressfreedom.data` to `Remotes:` as a stopgap so `install_github()`/`pak::pak()` can fetch it from GitHub in the meantime. **Once `pressfreedom.data` is live on CRAN, remove this line from `Remotes:`** — `Remotes:` entries take priority over CRAN sources, so leaving it in place would keep forcing a GitHub install even after the simpler CRAN path becomes available.
+### Vendored dependencies: `ggbump` and `flag-icons`
 
-**Clean-library verification note (2026-08-02):** after adding the `Remotes:` line above, a first re-test of `remotes::install_github("petzi53/pressfreedom")` still failed with `pressfreedom.data` skipped/not found. This turned out to be an unpushed-commit issue, not a limitation of `remotes` or `pak`: the fix existed only in local commits, so `install_github()` was fetching a stale `DESCRIPTION` from GitHub (still requiring `pressfreedom.data (>= 0.1.0)` with no `Remotes:` entry for it). After `git push`, both `remotes::install_github()` and `pak::pak()`/`pak::pkg_install()` resolved and installed the full GitHub dependency chain (`pressfreedom.data`, `flagon`, `ggbump`) correctly on a genuinely clean library. `remotes::install_github()` may print benign `skipping pax global extended headers` warnings from `untar2` when unpacking GitHub-generated tarballs — a well-known cosmetic quirk unrelated to this package's configuration (`pak` doesn't show it because it uses a different, libarchive-based extraction path). Takeaway: when a `Remotes:`/dependency-resolution fix appears not to work, check that local commits were actually pushed before suspecting the tooling.
+As of 2026-08-25, both `ggbump` and flag-icons (previously wrapped by `flagon`) are **vendored directly** into this package, eliminating GitHub-only dependencies (see `LICENSE.note` for attribution):
+
+**`ggbump` (GitHub-only, archived from CRAN 2025-12-04):**
+- Core bump-chart functions are in `inst/app/R/geom_bump_vendored.R` with names prefixed `pf_` (e.g., `pf_geom_bump()`, `PfStatBump`) to avoid conflicts if ggbump is revived as a dependency.
+- `mod_chart.R` and `mod_country.R` call `pf_geom_bump()` directly instead of conditionally branching on `has_ggbump()` and falling back to `geom_line()`. Rank charts now always have S-curve smoothing.
+- Vendored from commit fe6d5c7 (main branch, 2025); see LICENSE.note for full attribution and MIT license text.
+
+**Flag-icons SVGs (replacing `flagon`):**
+- Flag SVGs from `lipis/flag-icons` v7.5.0 (commit 086f7e97, 2026-05-29) are vendored in `inst/app/www/flags/` and auto-served by Shiny.
+- `flags.R`'s `iso3_to_flag_code()` logic and override table remain unchanged; `flag_img_tag()` now builds `<img src="flags/xx.svg">` instead of `<img src="flags/xx.png">`, and no longer checks `has_flagon()`.
+- `app.R` no longer calls `shiny::addResourcePath("flags", ...)` — Shiny's built-in `www/` serving handles it automatically.
+- A subset of ~270 SVGs was vendored based on actual ISO 3166-1 alpha-2 codes needed by `rwb_standardized`; see LICENSE.note for source and MIT license text.
+
+**Net result:** the app now has no external GitHub-only dependencies (`ggbump`, `flagon`), and no optional runtime fallbacks — both are always available and the code is simpler.
+
+**Temporary: `petzi53/pressfreedom.data` in `Remotes:` (remove once CRAN accepts it).** `pressfreedom.data` was submitted to CRAN but is still pending review as of this writing (2026-08-02). Once it's live on CRAN, remove this `Remotes:` entry — `Remotes:` entries take priority over CRAN sources, so leaving it in place would keep forcing a GitHub install even after the simpler CRAN path becomes available.
 
 ## Deploying to Posit Connect Cloud (manual)
 
