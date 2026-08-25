@@ -1,69 +1,55 @@
-# CRAN Submission: pressfreedom 0.1.1
+# CRAN Submission: pressfreedom 0.2.0
 
 ## Test Environments
-- macOS 13.x–26.x (arm64), R 4.6.1
+
+- R 4.6.1 on aarch64-apple-darwin23 (macOS Tahoe 26.5)
 
 ## R CMD Check Results
-- 0 errors
-- 0 warnings
-- 1 note: "Namespaces in Imports field not imported from" (pre-existing, expected)
-  - This note reflects the package's structure: all visualization packages (`bslib`, `dplyr`, `plotly`, `ggplot2`, `htmlwidgets`, `RColorBrewer`, `countrycode`) are used only inside `inst/app/app.R` and module files (runtime-sourced scripts invisible to R CMD check's namespace scanner), not in the package's own `R/` code. This is by design for a package whose primary purpose is to provide a Shiny app rather than exported functions.
+
+✔ **0 errors | 0 warnings | 0 notes**
+
+All checks pass successfully.
 
 ## Comments
 
-This package provides an interactive Shiny dashboard for exploring the Reporters Without Borders Press Freedom Index dataset (2002–2026).
+`pressfreedom` is a Shiny dashboard for exploring Reporters Without Borders Press Freedom Index data (2002–2026). It is a companion visualization package to `pressfreedom.data` (the authoritative dataset, now on CRAN).
 
-### Design & Dependencies
+### Vendored Dependencies
 
-The package exports a single function, `run_app()`, which launches a Shiny dashboard. The dashboard's interactive features depend on visualization packages (`bslib`, `dplyr`, `plotly`, `ggplot2`, `htmlwidgets`, `RColorBrewer`, `countrycode`) listed in `Imports` because they are required at runtime and have no platform/CRAN barriers.
+This submission includes two vendored dependencies with full MIT attribution (see `LICENSE.note`):
 
-### Optional Enhancements: `ggbump` and `flagon`
+- **ggbump geometry functions** (`inst/app/R/geom_bump_vendored.R`): Vendored from the archived GitHub repository `jlbusch/ggbump` (commit fe6d5c7, main branch, 2025). Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`) to avoid conflicts. This eliminates a dependency on an archived package. Rank-based bump charts now always use S-curve smoothing.
 
-Two GitHub-only packages are listed in `Suggests`:
+- **flag-icons SVGs** (`inst/app/www/flags/`): Vendored from `lipis/flag-icons` (v7.5.0, commit 086f7e97, 2026-05-29). A subset of ~270 SVG files corresponding to ISO 3166-1 alpha-2 codes present in the dataset are included. This upgrades from PNG-format flags (via the GitHub-only `flagon` wrapper) to crisper, smaller SVG assets and eliminates a GitHub-only package dependency.
 
-- **`ggbump`** (GitHub: `davidsjoberg/ggbump`): Provides smooth "bump chart" lines for rank trends in the Trends and Country views. When unavailable, the app falls back to standard `ggplot2::geom_line()` (straight line segments between yearly rank points).
+Both components are properly attributed in `LICENSE.note`, which must be included with the distribution per the MIT license.
 
-- **`flagon`** (GitHub: `coolbutuseless/flagon`): Provides country flag icons for the Map and Country views. When unavailable, the app renders without flag icons but remains fully functional.
+### All CRAN Dependencies
 
-**Graceful Degradation:** The app was architected (as of 2026-08-24) to degrade gracefully when either package is unavailable. Rather than crashing or throwing errors, missing visualizations are replaced with simpler alternatives:
+As of this submission, all packages in `Imports` are available from CRAN:
 
-1. **`inst/app/R/helpers.R`** defines `has_ggbump()` and `has_flagon()` helper functions that check for package availability via `requireNamespace(..., quietly = TRUE)`.
+- `pressfreedom.data` (>= 0.3.0) — companion dataset package, published on CRAN as of August 20, 2026
+- `shiny`, `bslib`, `dplyr`, `plotly`, `ggplot2`, `htmlwidgets`, `RColorBrewer`, `countrycode`, `tidyr`, `purrr` — all CRAN-available
 
-2. **`inst/app/app.R`** wraps the flag resource registration in a guard: `if (requireNamespace("flagon", quietly = TRUE)) { ... }`, preventing startup failure.
+The `Remotes:` field has been removed entirely; no GitHub overrides are needed.
 
-3. **`inst/app/R/flags.R`** — `flag_img_tag()` checks `has_flagon()` and returns `NULL` (no image) instead of building a broken-image tag when flagon is unavailable.
+### Design & Architecture
 
-4. **`inst/app/R/mod_chart.R` and `inst/app/R/mod_country.R`** both check `has_ggbump()` and fall back to `geom_line()` when unavailable.
+The package exports a single function, `run_app()`, which launches the Shiny dashboard. The dashboard has three main interactive views:
 
-**Verified Behavior:** Live testing via headless browser automation with a restricted library (both packages excluded) confirmed the app launches, loads all three main views (Map, Trends, Country), and renders interactive charts without errors — with the graceful substitutions noted above.
+- **Map**: A choropleth colored by Press Freedom Score, Rank, or 2022+ dimension scores (filtered by year, zone, and band/tier selection).
+- **Trends**: Multi-country line charts (Score) or bump charts (Rank) over 2002–2025, with client-side hover-dimming and click-to-navigate.
+- **Country**: A single-country profile with stat tables, band/tier counts, and combined trend charts overlaying dimension scores (2022+) on score and rank trends.
 
-**renv Detection:** Explicit `if (requireNamespace(...)) library(...)` calls in `inst/app/app.R` ensure `renv::dependencies()` correctly identifies these packages as used, even though they're in `Suggests`.
+All interactive behavior (hover-dimming, click-to-navigate) is handled client-side via JavaScript (`htmlwidgets::onRender`) to avoid timing issues with server round-trips.
 
-### Installation for CRAN Users
+### Data Separation
 
-CRAN users installing this package via `install.packages("pressfreedom")` will not automatically receive the GitHub dependencies. To get the full experience (smooth bump charts, country flags), they can install via:
+`pressfreedom.data` (imported) provides the cleaned, standardized `rwb_standardized` dataset. All data-cleaning logic is maintained in that separate package; this dashboard is the visualization layer only. This separation enables:
 
-```r
-remotes::install_github("petzi53/pressfreedom")
-# or
-pak::pak("petzi53/pressfreedom")
-```
+- **Reusability**: Other researchers can use the cleaned dataset directly without installing the Shiny app.
+- **Annual updates**: When RSF publishes a new index each May, `pressfreedom.data` is updated with the new data; this package's dashboard automatically reflects those updates with no code changes needed (except for new dimension scores or methodological changes).
 
-These tools automatically resolve GitHub packages listed in `Remotes:`.
+### Live Deployment
 
-Alternatively, users can use the browser-based dashboard without installing anything:  
-https://pbaumgartner-pressfreedom.share.connect.posit.cloud/
-
-### Data Dependency: `pressfreedom.data`
-
-**`pressfreedom.data` (>= 0.2.0)** is listed in `Imports` and is now available on CRAN (as of August 2026). This companion package provides the cleaned, standardized `rwb_standardized` dataset, the core data source for the dashboard. For reproducibility and transparency, all data-cleaning logic is maintained in that separate package; this dashboard is the visualization layer only.
-
-### Why This Approach?
-
-- **Separation of concerns:** Data logic lives in `pressfreedom.data`; visualization logic lives in this package.
-- **Reusability:** Other researchers can use the cleaned dataset directly via `library(pressfreedom.data)` without installing the Shiny app.
-- **Annual updates:** When RSF publishes a new index each May, `pressfreedom.data` is updated with the new data; this package's dashboard automatically reflects those updates with no code changes needed (except for new dimension scores or methodological changes in RSF's scoring).
-
-### Deployment
-
-The dashboard is live at https://pbaumgartner-pressfreedom.share.connect.posit.cloud/ on Posit Connect Cloud. This CRAN submission makes the code available via CRAN and GitHub for reproducibility and local deployment; it does not change the live deployment.
+The dashboard is live at https://pbaumgartner-pressfreedom.share.connect.posit.cloud/ on Posit Connect Cloud. This CRAN submission makes the code available via CRAN and GitHub for reproducibility and local deployment.
