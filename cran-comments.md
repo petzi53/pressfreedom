@@ -3,12 +3,23 @@
 ## Test Environments
 
 - R 4.6.1 on aarch64-apple-darwin23 (macOS Tahoe 26.5)
+- **R-hub GitHub Actions v2 workflow:** ✅ Passed (multiple platforms)
+- **winbuilder:** ✅ Passed (Windows devel & release)
+
+Cross-platform testing confirms the package builds and passes R CMD check across all major platforms without errors, warnings, or regressions.
 
 ## R CMD Check Results
 
 ✔ **0 errors | 0 warnings | 0 notes**
 
-All checks pass successfully.
+All checks pass successfully on all tested platforms.
+
+### Platform Testing Notes
+
+One informational note appeared during winbuilder testing:
+> Possibly misspelled words in DESCRIPTION: RWB (8:73, 9:65)
+
+**Explanation:** "RWB" is the official acronym for "Reporters Without Borders," the organization that publishes the Press Freedom Index. It appears twice in the DESCRIPTION field as intended (short form of the organization name). This is not a misspelling—it is the correct, standard abbreviation used throughout the package documentation and by the organization itself. No change is needed.
 
 ## Comments
 

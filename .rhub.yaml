@@ -1,0 +1,7 @@
+# R-hub v2 configuration for pressfreedom package
+# This file configures R-hub checks for CRAN submission
+
+# Enable/disable check notifications
+notifications:
+  email: true
+
