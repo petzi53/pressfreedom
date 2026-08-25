@@ -66,7 +66,7 @@ test_that("flag_img_tag() builds an <img> tag pointing at the right flag file", 
   tag <- flag_img_tag("USA")
   expect_s3_class(tag, "shiny.tag")
   expect_equal(tag$name, "img")
-  expect_equal(tag$attribs$src, "flags/us.png")
+  expect_equal(tag$attribs$src, "flags/us.svg")
 })
 
 test_that("flag_img_tag() defaults alt text to the iso3 argument", {

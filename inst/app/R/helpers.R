@@ -1,6 +1,11 @@
 ## inst/app/R/helpers.R
 ## Shared helper functions for the WPFI Shiny app.
 
+# Note: has_ggbump() and has_flagon() have been removed.
+# Both ggbump and flagon are now vendored directly (see LICENSE.note and AGENTS.md):
+# - ggbump functions are in inst/app/R/geom_bump_vendored.R (pf_geom_bump, etc.)
+# - flag-icons SVGs are in inst/app/www/flags/ (auto-served by Shiny)
+
 #' Filter and prepare data for a chart
 #'
 #' @param df    The full rwb_standardized data frame.

@@ -24,16 +24,14 @@ Imports:
     ggplot2,
     htmlwidgets,
     RColorBrewer,
-    ggbump,
     countrycode,
-    flagon
+    tidyr,
+    purrr
 Suggests:
     pkgdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Remotes:
-    coolbutuseless/flagon,
-    davidsjoberg/ggbump,
     petzi53/pressfreedom.data
 URL: https://github.com/petzi53/pressfreedom, https://www.peter-baumgartner.net/pressfreedom/
 BugReports: https://github.com/petzi53/pressfreedom/issues

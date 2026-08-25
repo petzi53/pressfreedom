@@ -792,7 +792,10 @@ countryServer <- function(id, rwb_standardized) {
                 ggplot2::ylab("Rank")
 
             if (nrow(bump_df) > 0) {
-                p <- p + ggbump::geom_bump(data = bump_df)
+                # pf_geom_bump() is now vendored (see geom_bump_vendored.R and LICENSE.note).
+                # It provides the S-curve smoothing for Rank trends, replacing the
+                # archived-from-CRAN ggbump package.
+                p <- p + pf_geom_bump(data = bump_df)
             }
 
             plotly::ggplotly(p, tooltip = "text")

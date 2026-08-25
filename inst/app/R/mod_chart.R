@@ -154,11 +154,16 @@ chartServer <- function(id, rwb_standardized, var, country, inputs_download_data
                 # ggplot2 warns "Ignoring unknown aesthetics: text" on
                 # construction. Harmless; suppressed here (same pattern as
                 # mod_country.R's combined trend charts).
+                # pf_geom_bump() is now vendored (see geom_bump_vendored.R and LICENSE.note).
+                # It provides the S-curve smoothing for Rank charts; replacing the
+                # archived-from-CRAN ggbump package.
+                bump_layer <- pf_geom_bump(linewidth = 1.0, show.legend = FALSE)
+
                 p <- suppressWarnings(ggplot2::ggplot(
                     df_ordered,
                     ggplot2::aes(x = year_n, y = rank, color = country_en)
                 ) +
-                    ggbump::geom_bump(linewidth = 1.0, show.legend = FALSE) +
+                    bump_layer +
                     ggplot2::geom_point(ggplot2::aes(text = hover_text), size = 5)) +
                     ggplot2::theme_bw() +
                     ggplot2::scale_y_reverse(breaks = ggplot2::waiver(), n.breaks = 25) +

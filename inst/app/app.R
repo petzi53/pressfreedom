@@ -12,16 +12,18 @@
 # ggplot2 must be attached: ggplotly() resolves vars() by name on the search path
 library(ggplot2)
 
+# ggbump and flagon are now vendored directly (see LICENSE.note and AGENTS.md),
+# so no library() calls are needed here.
+
 # Source all module and helper files from R/
 invisible(lapply(list.files("R", full.names = TRUE, pattern = "\\.R$"), source))
 
 # Load authoritative dataset from pressfreedom.data
 rwb_standardized <- pressfreedom.data::rwb_standardized
 
-# flagon installs flag images on disk rather than as package data; serve
-# them under /flags so <img src="flags/xx.png"> works anywhere in the app
-# (see R/flags.R for the iso3 -> flagon-code mapping).
-shiny::addResourcePath("flags", system.file("png", package = "flagon"))
+# Flag SVGs are now vendored in inst/app/www/flags/ and auto-served by Shiny
+# (same mechanism as favicon.ico/favicon.png), so no addResourcePath() is needed.
+# See LICENSE.note and AGENTS.md for details on vendored flag-icons assets.
 
 ##############################################################
 ui <- bslib::page_navbar(

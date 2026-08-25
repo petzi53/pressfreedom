@@ -1,10 +1,11 @@
 ## inst/app/R/flags.R
-## Flag helpers: map rwb_standardized's 3-letter `iso` codes to flagon's 2-letter codes
-## and build <img> tags for rendering.
+## Flag helpers: map rwb_standardized's 3-letter `iso` codes to vendored flag-icons
+## SVG files and build <img> tags for rendering.
 ##
-## flagon::flags() is indexed by ISO 3166-1 alpha-2 codes; rwb_standardized$iso is
-## alpha-3 and is not a clean 1:1 country mapping (see AGENTS.md). This
-## file resolves the standard cases via countrycode and overrides the
+## Flag SVGs are vendored from flag-icons (https://github.com/lipis/flag-icons)
+## and stored in inst/app/www/flags/. They are indexed by ISO 3166-1 alpha-2 codes;
+## rwb_standardized$iso is alpha-3 and is not a clean 1:1 country mapping (see AGENTS.md).
+## This file resolves the standard cases via countrycode and overrides the
 ## known non-standard/ambiguous ones by hand rather than guessing.
 
 # Manual overrides for iso3 codes that countrycode::countrycode() cannot
@@ -76,9 +77,9 @@ flag_emoji <- function(iso3) {
 
 #' Build an `<img>` tag for a country's flag
 #'
-#' Assumes `shiny::addResourcePath("flags", ...)` has been called once at
-#' app startup (see app.R). Falls back to `NULL` (no image) rather than a
-#' broken image when no sensible flag exists.
+#' Uses vendored flag-icons SVG files from `inst/app/www/flags/`, which Shiny
+#' auto-serves under the `flags/` path. Falls back to `NULL` (no image)
+#' rather than a broken image when no sensible flag exists.
 #'
 #' @param iso3   A single `rwb_standardized$iso` value.
 #' @param alt    Alt text for the image (defaults to `iso3`).
@@ -87,7 +88,7 @@ flag_img_tag <- function(iso3, alt = iso3, height = "1em") {
   code <- iso3_to_flag_code(iso3)
   if (is.na(code)) return(NULL)
   shiny::tags$img(
-    src = paste0("flags/", code, ".png"),
+    src = paste0("flags/", code, ".svg"),
     alt = alt,
     style = paste0(
       "height: ", height, "; width: auto; ",
