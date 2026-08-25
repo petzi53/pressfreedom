@@ -4,6 +4,8 @@ This file provides context and guidance for AI agents working on the `pressfreed
 
 ## Latest Update
 
+**CRAN Submission Ready (2026-08-25):** The pressfreedom package version 0.2.0 is **fully ready for CRAN submission**. All GitHub-only dependencies have been vendored (ggbump, flag-icons); all packages are CRAN-available; R CMD check passes with 0 errors, 0 warnings, 0 notes. See `.posit/assistant/docs/2026-08-25-submission-summary.md` for complete submission status and instructions.
+
 **Deployment (2026-08-07):** The pressfreedom dashboard is deployed to **Posit Connect Cloud** at https://pbaumgartner-pressfreedom.share.connect.posit.cloud/. **Important:** There is a distinction between two Posit platforms: **Posit Cloud** (phasing out, linked via GitHub OAuth) and **Posit Connect Cloud** (the correct modern platform). Access the pbaumgartner account at https://connect.posit.cloud with Google login, not GitHub.
 
 ## CRITICAL: One Question at a Time (UI Glitch Workaround)
