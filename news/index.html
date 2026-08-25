@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pressfreedom</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,14 +29,58 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.0" id="pressfreedom-010">pressfreedom 0.1.0<a class="anchor" aria-label="anchor" href="#pressfreedom-010"></a></h2>
-<p>Initial release.</p>
-<ul><li>Shiny dashboard for exploring the Reporters Without Borders (RSF) Press Freedom Index (2002–2025), with four views: Map, Trends, Country, and About.</li>
-<li>Data is loaded live from the companion package <a href="https://www.peter-baumgartner.net/pressfreedom.data/index.html"><code>pressfreedom.data</code></a> rather than bundled, so the dashboard always reflects the latest release of the cleaned dataset.</li>
-<li>
-<code><a href="../reference/run_app.html">run_app()</a></code> launches the dashboard locally; the same app code is also deployed read-only at <a href="https://petzi53.shinyapps.io/pressfreedom/" class="external-link uri">https://petzi53.shinyapps.io/pressfreedom/</a>.</li>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="pressfreedom-020-2026-08-25">pressfreedom 0.2.0 (2026-08-25)<a class="anchor" aria-label="anchor" href="#pressfreedom-020-2026-08-25"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-0-2-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0"></a></h3>
+<p>None. This is a maintainability and CRAN-preparation release.</p>
+</div>
+<div class="section level3">
+<h3 id="major-changes-0-2-0">Major changes<a class="anchor" aria-label="anchor" href="#major-changes-0-2-0"></a></h3>
+<ul><li><p><strong>Vendored ggbump geometry functions</strong> (<code>inst/app/R/geom_bump_vendored.R</code>) to replace the GitHub-only dependency on <code>jlbusch/ggbump</code> (archived from CRAN 2025-12-04). Functions are prefixed with <code>pf_</code> (e.g., <code>pf_geom_bump()</code>, <code>PfStatBump</code>) to avoid conflicts. Rank-based bump charts now always use S-curve smoothing; the conditional fallback to <code>geom_line()</code> has been removed.</p></li>
+<li><p><strong>Vendored flag-icons SVGs</strong> (<code>inst/app/www/flags/</code>) to replace the GitHub-only <code>flagon</code> package. A curated subset of ~270 SVG files from <code>lipis/flag-icons</code> v7.5.0 corresponding to ISO 3166-1 alpha-2 codes in the dataset are now served directly. This eliminates a GitHub-only dependency and provides crisper, smaller-file-size flags than the previous PNG-format approach.</p></li>
+<li><p><strong>Removed all GitHub-only dependencies</strong>: <code>DESCRIPTION</code>’s <code>Imports</code>, <code>Suggests</code>, and <code>Remotes:</code> fields are now clean. All packages are available from CRAN.</p></li>
+<li><p><strong>Updated documentation</strong>: Comprehensive updates to <code>AGENTS.md</code> documenting vendoring rationale, attribution, and the finalized app architecture.</p></li>
+<li><p><strong>Added <code>LICENSE.note</code></strong>: Full MIT attribution for vendored <code>ggbump</code> and <code>flag-icons</code> components.</p></li>
 </ul></div>
-  </main></div>
+<div class="section level3">
+<h3 id="minor-changes-0-2-0">Minor changes<a class="anchor" aria-label="anchor" href="#minor-changes-0-2-0"></a></h3>
+<ul><li>
+<code>DESCRIPTION</code>: Version → 0.2.0, Date → 2026-08-25</li>
+<li>
+<code>flags.R</code>: Updated to use <code>.svg</code> extension instead of <code>.png</code>
+</li>
+<li>
+<code>app.R</code>: Removed library calls and resource path registrations for <code>ggbump</code> and <code>flagon</code>
+</li>
+<li>
+<code>mod_chart.R</code> and <code>mod_country.R</code>: Now call <code>pf_geom_bump()</code> directly without conditional fallback</li>
+<li>
+<code>helpers.R</code>: Removed <code>has_ggbump()</code> and <code>has_flagon()</code> utility functions</li>
+<li>Test suite: Updated to expect <code>.svg</code> file extension</li>
+<li>
+<code>renv.lock</code>: Refreshed to reflect removal of GitHub-only dependencies</li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-0-2-0">Testing<a class="anchor" aria-label="anchor" href="#testing-0-2-0"></a></h3>
+<ul><li>R CMD check: 0 errors, 0 warnings, 0 notes</li>
+<li>All unit tests pass</li>
+</ul></div>
+<div class="section level3">
+<h3 id="acknowledgments-0-2-0">Acknowledgments<a class="anchor" aria-label="anchor" href="#acknowledgments-0-2-0"></a></h3>
+<p>Vendored dependencies: - <code>ggbump</code> functions adapted from <a href="https://github.com/jlbusch/ggbump" class="external-link">jlbusch/ggbump</a>, copyright © 2023 Jake L. Busch, licensed under MIT - Flag SVGs from <a href="https://github.com/lipis/flag-icons" class="external-link">lipis/flag-icons</a>, copyright © 2013–2024 Lipis, licensed under MIT</p>
+<p>Full license texts included in <code>LICENSE.note</code>.</p>
+<hr></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0" id="pressfreedom-010-2026-08-03">pressfreedom 0.1.0 (2026-08-03)<a class="anchor" aria-label="anchor" href="#pressfreedom-010-2026-08-03"></a></h2>
+<p>Initial release.</p>
+<ul><li>Shiny dashboard for exploring the Reporters Without Borders (RSF) Press Freedom Index (2002–2025), with Map, Trends, Country, and About views.</li>
+<li>Data is loaded live from the companion package <a href="https://github.com/petzi53/pressfreedom.data" class="external-link"><code>pressfreedom.data</code></a> rather than bundled, so the dashboard always reflects the latest release of the cleaned dataset.</li>
+<li>
+<code><a href="../reference/run_app.html">run_app()</a></code> launches the dashboard locally; deployed at <a href="https://pbaumgartner-pressfreedom.share.connect.posit.cloud/" class="external-link uri">https://pbaumgartner-pressfreedom.share.connect.posit.cloud/</a> on Posit Connect Cloud.</li>
+</ul></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
