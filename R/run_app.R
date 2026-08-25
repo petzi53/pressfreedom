@@ -45,6 +45,16 @@
 #' \code{\link[pressfreedom.data]{rwb_standardized}} for the underlying
 #' dataset's documentation.
 #'
+#' @importFrom bslib page_navbar card navset_hidden
+#' @importFrom countrycode countrycode
+#' @importFrom dplyr filter arrange desc mutate select
+#' @importFrom ggplot2 ggplot aes geom_bar geom_point geom_line scale_y_reverse theme element_text
+#' @importFrom htmlwidgets onRender
+#' @importFrom plotly plot_ly add_trace layout subplot style config ggplotly
+#' @importFrom purrr map
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom tidyr pivot_longer
+#'
 #' @export
 #'
 #' @examples
