@@ -6,7 +6,7 @@ None. This is a maintainability and CRAN-preparation release.
 
 ## Major changes
 
-- **Vendored ggbump geometry functions** (`inst/app/R/geom_bump_vendored.R`) to replace the GitHub-only dependency on `jlbusch/ggbump` (archived from CRAN 2025-12-04). Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`, `PfStatBump`) to avoid conflicts. Rank-based bump charts now always use S-curve smoothing; the conditional fallback to `geom_line()` has been removed.
+- **Vendored ggbump geometry functions** (`inst/app/R/geom_bump_vendored.R`) to replace the GitHub-only dependency on `davidsjoberg/ggbump` (archived from CRAN 2025-12-04). Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`, `PfStatBump`) to avoid conflicts. Rank-based bump charts now always use S-curve smoothing; the conditional fallback to `geom_line()` has been removed.
 
 - **Vendored flag-icons SVGs** (`inst/app/www/flags/`) to replace the GitHub-only `flagon` package. A curated subset of ~270 SVG files from `lipis/flag-icons` v7.5.0 corresponding to ISO 3166-1 alpha-2 codes in the dataset are now served directly. This eliminates a GitHub-only dependency and provides crisper, smaller-file-size flags than the previous PNG-format approach.
 
@@ -34,7 +34,7 @@ None. This is a maintainability and CRAN-preparation release.
 ## Acknowledgments
 
 Vendored dependencies:
-- `ggbump` functions adapted from [jlbusch/ggbump](https://github.com/jlbusch/ggbump), copyright © 2023 Jake L. Busch, licensed under MIT
+- `ggbump` functions adapted from [davidsjoberg/ggbump](https://github.com/davidsjoberg/ggbump), copyright © 2020 David Sjöberg, licensed under MIT
 - Flag SVGs from [lipis/flag-icons](https://github.com/lipis/flag-icons), copyright © 2013–2024 Lipis, licensed under MIT
 
 Full license texts included in `LICENSE.note`.

@@ -1,9 +1,17 @@
 # CRAN Submission: pressfreedom 0.2.0
 
+## Note on DESCRIPTION spelling check
+
+"RWB" (flagged by the spell-checker in DESCRIPTION) is the correct acronym
+for **Reporters Without Borders**, the organization that publishes the Press
+Freedom Index this package visualizes. It is not a misspelling. See "Platform
+Testing Notes" below for detail.
+
 ## Test Environments
 
 - R 4.6.1 on aarch64-apple-darwin23 (macOS Tahoe 26.5)
 - **R-hub GitHub Actions v2 workflow:** ✅ Passed (multiple platforms)
+  - Note: Harmless Homebrew trust warnings appeared on the macOS R-devel runner during environment setup (untrusted `aws/tap` in the runner image). These are infrastructure-level messages unrelated to the package and do not appear in R CMD check output. CRAN's own infrastructure does not have this issue.
 - **winbuilder:** ✅ Passed (Windows devel & release)
 
 Cross-platform testing confirms the package builds and passes R CMD check across all major platforms without errors, warnings, or regressions.
@@ -29,7 +37,7 @@ One informational note appeared during winbuilder testing:
 
 This submission includes two vendored dependencies with full MIT attribution (see `LICENSE.note`):
 
-- **ggbump geometry functions** (`inst/app/R/geom_bump_vendored.R`): Vendored from the archived GitHub repository `jlbusch/ggbump` (commit fe6d5c7, main branch, 2025). Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`) to avoid conflicts. This eliminates a dependency on an archived package. Rank-based bump charts now always use S-curve smoothing.
+- **ggbump geometry functions** (`inst/app/R/geom_bump_vendored.R`): Vendored from the archived GitHub repository `davidsjoberg/ggbump` (commit fe6d5c7, main branch, 2025). Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`) to avoid conflicts. This eliminates a dependency on an archived package. Rank-based bump charts now always use S-curve smoothing.
 
 - **flag-icons SVGs** (`inst/app/www/flags/`): Vendored from `lipis/flag-icons` (v7.5.0, commit 086f7e97, 2026-05-29). A subset of ~270 SVG files corresponding to ISO 3166-1 alpha-2 codes present in the dataset are included. This upgrades from PNG-format flags (via the GitHub-only `flagon` wrapper) to crisper, smaller SVG assets and eliminates a GitHub-only package dependency.
 

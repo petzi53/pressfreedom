@@ -74,8 +74,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Credits
 
-The hex logo's microphone icon is from Flaticon:
-<a href="https://www.flaticon.com/free-icons/microphone" title="microphone icons">Microphone icons created by Magnific - Flaticon</a>
+The hex logo's microphone icon is from Flaticon (microphone icons created by Magnific).
 
 ## Author
 
@@ -84,4 +83,4 @@ The hex logo's microphone icon is from Flaticon:
 ## Related
 
 - [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) — data acquisition and standardization
-- [Reporters Without Borders (RSF)](https://rsf.org/) — original data source
+- [Reporters Without Borders (RSF)](https://rsf.org/en/index) — original data source
