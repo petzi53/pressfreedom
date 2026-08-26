@@ -10,7 +10,7 @@ None. This is a maintainability and CRAN-preparation release.
 
 - **Vendored ggbump geometry functions**
   (`inst/app/R/geom_bump_vendored.R`) to replace the GitHub-only
-  dependency on `jlbusch/ggbump` (archived from CRAN 2025-12-04).
+  dependency on `davidsjoberg/ggbump` (archived from CRAN 2025-12-04).
   Functions are prefixed with `pf_` (e.g., `pf_geom_bump()`,
   `PfStatBump`) to avoid conflicts. Rank-based bump charts now always
   use S-curve smoothing; the conditional fallback to `geom_line()` has
@@ -55,8 +55,8 @@ None. This is a maintainability and CRAN-preparation release.
 ### Acknowledgments
 
 Vendored dependencies: - `ggbump` functions adapted from
-[jlbusch/ggbump](https://github.com/jlbusch/ggbump), copyright © 2023
-Jake L. Busch, licensed under MIT - Flag SVGs from
+[davidsjoberg/ggbump](https://github.com/davidsjoberg/ggbump), copyright
+© 2020 David Sjöberg, licensed under MIT - Flag SVGs from
 [lipis/flag-icons](https://github.com/lipis/flag-icons), copyright ©
 2013–2024 Lipis, licensed under MIT
 

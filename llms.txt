@@ -78,9 +78,8 @@ details.
 
 ## Credits
 
-The hex logo’s microphone icon is from Flaticon: [Microphone icons
-created by Magnific -
-Flaticon](https://www.flaticon.com/free-icons/microphone "microphone icons")
+The hex logo’s microphone icon is from Flaticon (microphone icons
+created by Magnific).
 
 ## Author
 
@@ -92,8 +91,8 @@ Flaticon](https://www.flaticon.com/free-icons/microphone "microphone icons")
 
 - [pressfreedom.data](https://github.com/petzi53/pressfreedom.data) —
   data acquisition and standardization
-- [Reporters Without Borders (RSF)](https://rsf.org/) — original data
-  source
+- [Reporters Without Borders (RSF)](https://rsf.org/en/index) — original
+  data source
 
 # Package index
 
