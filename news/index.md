@@ -2,6 +2,8 @@
 
 ## pressfreedom 0.2.0 (2026-08-25)
 
+CRAN release: 2026-09-08
+
 ### Breaking changes
 
 None. This is a maintainability and CRAN-preparation release.
